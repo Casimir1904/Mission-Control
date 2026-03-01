@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -35,6 +35,13 @@ export function NewChatDialog({
   );
   const [selectedAgent, setSelectedAgent] = useState("");
   const createMutation = useCreateChatSession();
+
+  // Sync selectedGateway when gateways load after mount
+  useEffect(() => {
+    if (!selectedGateway && gateways.length > 0) {
+      setSelectedGateway(gateways[0].id);
+    }
+  }, [gateways, selectedGateway]);
 
   const handleCreate = () => {
     if (!selectedGateway) return;

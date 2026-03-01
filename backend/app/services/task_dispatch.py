@@ -86,6 +86,7 @@ class TaskDispatchService:
         else:
             chat_session = await chat_service.create_session(
                 gateway_id=gateway.id,
+                organization_id=gateway.organization_id,
                 agent_id=target_agent_id,
                 task_id=task_id,
                 title=f"Task: {task.title}",

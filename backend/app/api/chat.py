@@ -60,6 +60,7 @@ async def create_chat_session(
     try:
         chat_session = await service.create_session(
             gateway_id=payload.gateway_id,
+            organization_id=ctx.organization.id,
             agent_id=payload.agent_id,
             task_id=payload.task_id,
             title=payload.title,

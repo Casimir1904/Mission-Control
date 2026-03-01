@@ -20,6 +20,7 @@ class ChatSession(TenantScoped, table=True):
     __tablename__ = "chat_sessions"  # pyright: ignore[reportAssignmentType]
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
+    organization_id: UUID = Field(foreign_key="organizations.id", index=True)
     task_id: UUID | None = Field(default=None, foreign_key="tasks.id", index=True)
     agent_id: UUID | None = Field(default=None, foreign_key="agents.id", index=True)
     gateway_id: UUID = Field(foreign_key="gateways.id", index=True)
@@ -37,6 +38,7 @@ class ChatMessage(TenantScoped, table=True):
     __tablename__ = "chat_messages"  # pyright: ignore[reportAssignmentType]
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
+    organization_id: UUID = Field(foreign_key="organizations.id", index=True)
     session_id: UUID = Field(foreign_key="chat_sessions.id", index=True)
     sender_type: str = Field(index=True)  # user, agent, system
     content: str = Field(sa_column=Column(Text))

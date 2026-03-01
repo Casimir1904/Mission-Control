@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
@@ -49,6 +50,7 @@ class ChatService:
         self,
         *,
         gateway_id: UUID,
+        organization_id: UUID,
         agent_id: UUID | None = None,
         task_id: UUID | None = None,
         title: str | None = None,
@@ -75,6 +77,7 @@ class ChatService:
             self._session,
             ChatSession,
             id=session_id,
+            organization_id=organization_id,
             gateway_id=gateway_id,
             agent_id=agent_id,
             task_id=task_id,
@@ -131,6 +134,7 @@ class ChatService:
         message = await crud.create(
             self._session,
             ChatMessage,
+            organization_id=chat_session.organization_id,
             session_id=session_id,
             sender_type=sender_type,
             content=content,
@@ -221,7 +225,20 @@ class ChatService:
             role = msg.get("role") or msg.get("sender")
             if role not in ("assistant", "agent", "ai"):
                 continue
-            content = msg.get("content") or msg.get("text") or ""
+            raw_content = msg.get("content") or msg.get("text") or ""
+            # Content may be a list of blocks (e.g. thinking + text)
+            if isinstance(raw_content, list):
+                text_parts = []
+                for block in raw_content:
+                    if isinstance(block, dict) and block.get("type") == "text":
+                        text_parts.append(block.get("text", ""))
+                    elif isinstance(block, str):
+                        text_parts.append(block)
+                content = "\n\n".join(p for p in text_parts if p)
+            else:
+                content = str(raw_content)
+            # Strip gateway wrapper tags like <final>...</final>
+            content = re.sub(r"</?final>", "", content).strip()
             if not content:
                 continue
 
@@ -241,6 +258,7 @@ class ChatService:
             return await crud.create(
                 self._session,
                 ChatMessage,
+                organization_id=chat_session.organization_id,
                 session_id=session_id,
                 sender_type="agent",
                 content=content,
