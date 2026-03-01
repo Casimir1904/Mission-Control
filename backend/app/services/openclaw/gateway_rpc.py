@@ -10,6 +10,8 @@ from __future__ import annotations
 import asyncio
 import json
 import ssl
+from collections.abc import AsyncIterator, Callable, Coroutine
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from time import perf_counter, time
 from typing import Any, Literal
@@ -519,6 +521,73 @@ async def openclaw_connect_metadata(*, config: GatewayConfig) -> object:
             exc.__class__.__name__,
         )
         raise OpenClawGatewayError(str(exc)) from exc
+
+
+@asynccontextmanager
+async def openclaw_connection(
+    *,
+    config: GatewayConfig,
+) -> AsyncIterator[Callable[..., Coroutine[Any, Any, object]]]:
+    """Open a single gateway WebSocket and yield a reusable RPC caller.
+
+    Usage::
+
+        async with openclaw_connection(config=cfg) as call:
+            await call("agents.create", {"name": "x", "workspace": "/w"})
+            await call("agents.update", {"agentId": "x", "name": "X"})
+
+    The connection handshake (connect + device-pair) happens once; every
+    ``call`` reuses the same authenticated WebSocket.
+    """
+    gateway_url = _build_gateway_url(config)
+    origin = _build_control_ui_origin(gateway_url) if config.disable_device_pairing else None
+    ssl_context = _create_ssl_context(config)
+    connect_kwargs: dict[str, Any] = {"ping_interval": None}
+    if origin is not None:
+        connect_kwargs["origin"] = origin
+
+    async with websockets.connect(gateway_url, ssl=ssl_context, **connect_kwargs) as ws:
+        first_message = await _recv_first_message_or_none(ws)
+        await _ensure_connected(ws, first_message, config)
+
+        async def call(method: str, params: dict[str, Any] | None = None) -> object:
+            started_at = perf_counter()
+            logger.debug(
+                "gateway.rpc.connection.call.start method=%s gateway_url=%s",
+                method,
+                _redacted_url_for_log(gateway_url),
+            )
+            try:
+                payload = await _send_request(ws, method, params)
+                logger.debug(
+                    "gateway.rpc.connection.call.success method=%s duration_ms=%s",
+                    method,
+                    int((perf_counter() - started_at) * 1000),
+                )
+                return payload
+            except OpenClawGatewayError:
+                logger.warning(
+                    "gateway.rpc.connection.call.gateway_error method=%s duration_ms=%s",
+                    method,
+                    int((perf_counter() - started_at) * 1000),
+                )
+                raise
+            except (
+                TimeoutError,
+                ConnectionError,
+                OSError,
+                ValueError,
+                WebSocketException,
+            ) as exc:
+                logger.error(
+                    "gateway.rpc.connection.call.transport_error method=%s duration_ms=%s error_type=%s",
+                    method,
+                    int((perf_counter() - started_at) * 1000),
+                    exc.__class__.__name__,
+                )
+                raise OpenClawGatewayError(str(exc)) from exc
+
+        yield call
 
 
 async def send_message(

@@ -7,6 +7,7 @@ DB-backed workflows (template sync, lead-agent record creation) live in
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 from abc import ABC, abstractmethod
@@ -17,6 +18,7 @@ from typing import TYPE_CHECKING, Any
 from jinja2 import Environment, FileSystemLoader, StrictUndefined, select_autoescape
 
 from app.core.config import settings
+from app.core.logging import get_logger
 from app.models.agents import Agent
 from app.models.boards import Board
 from app.models.gateways import Gateway
@@ -41,6 +43,7 @@ from app.services.openclaw.gateway_rpc import (
     OpenClawGatewayError,
     ensure_session,
     openclaw_call,
+    openclaw_connection,
     send_message,
 )
 from app.services.openclaw.internal.agent_key import agent_key as _agent_key
@@ -53,6 +56,8 @@ from app.services.openclaw.shared import GatewayAgentIdentity
 
 if TYPE_CHECKING:
     from app.models.users import User
+
+logger = get_logger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -551,33 +556,55 @@ class OpenClawGatewayControlPlane(GatewayControlPlane):
         await openclaw_call("sessions.delete", {"key": session_key}, config=self._config)
 
     async def upsert_agent(self, registration: GatewayAgentRegistration) -> None:
-        # Prefer an idempotent "create then update" flow.
-        # - Avoids enumerating gateway agents for existence checks.
-        # - Ensures we always hit the "create" RPC first, per lifecycle expectations.
-        try:
-            await openclaw_call(
-                "agents.create",
-                {
-                    "name": registration.agent_id,
-                    "workspace": registration.workspace_path,
-                },
-                config=self._config,
-            )
-        except OpenClawGatewayError as exc:
-            message = str(exc).lower()
-            if not any(
-                marker in message for marker in ("already", "exist", "duplicate", "conflict")
-            ):
-                raise
-        await openclaw_call(
-            "agents.update",
-            {
+        # Use a single WebSocket connection for create+update to avoid a race
+        # where the gateway hasn't reloaded the new agent config before the
+        # update arrives on a separate connection.
+        just_created = False
+        async with openclaw_connection(config=self._config) as call:
+            try:
+                await call(
+                    "agents.create",
+                    {
+                        "name": registration.agent_id,
+                        "workspace": registration.workspace_path,
+                    },
+                )
+                just_created = True
+            except OpenClawGatewayError as exc:
+                message = str(exc).lower()
+                if not any(
+                    marker in message for marker in ("already", "exist", "duplicate", "conflict")
+                ):
+                    raise
+
+            update_params = {
                 "agentId": registration.agent_id,
                 "name": registration.name,
                 "workspace": registration.workspace_path,
-            },
-            config=self._config,
-        )
+            }
+
+            # When we just created the agent, the gateway may reload its config
+            # asynchronously. Retry "not found" errors with back-off.
+            max_retries = 3 if just_created else 0
+            for attempt in range(max_retries + 1):
+                try:
+                    await call("agents.update", update_params)
+                    break
+                except OpenClawGatewayError as exc:
+                    if attempt < max_retries and _is_missing_agent_error(exc):
+                        delay = 0.3 * (attempt + 1)
+                        logger.warning(
+                            "gateway.upsert_agent.update_retry agent=%s attempt=%d delay=%.1fs",
+                            registration.agent_id,
+                            attempt + 1,
+                            delay,
+                        )
+                        await asyncio.sleep(delay)
+                        continue
+                    raise
+
+        # patch_agent_heartbeats has its own multi-call flow (config.get + config.patch)
+        # and doesn't suffer from the create/update race — keep it outside.
         await self.patch_agent_heartbeats(
             [(registration.agent_id, registration.workspace_path, registration.heartbeat)],
         )

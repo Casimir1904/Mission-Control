@@ -466,19 +466,29 @@ async def test_set_agent_files_update_overwrite_writes_preserved_user_md():
 async def test_control_plane_upsert_agent_create_then_update(monkeypatch):
     calls: list[tuple[str, dict[str, object] | None]] = []
 
+    from contextlib import asynccontextmanager
+
+    @asynccontextmanager
+    async def _fake_openclaw_connection(*, config=None):
+        async def _call(method, params=None):
+            calls.append((method, params))
+            if method == "agents.create":
+                return {"ok": True}
+            if method == "agents.update":
+                return {"ok": True}
+            raise AssertionError(f"Unexpected method in connection: {method}")
+        yield _call
+
     async def _fake_openclaw_call(method, params=None, config=None):
         _ = config
         calls.append((method, params))
-        if method == "agents.create":
-            return {"ok": True}
-        if method == "agents.update":
-            return {"ok": True}
         if method == "config.get":
             return {"hash": None, "config": {"agents": {"list": []}}}
         if method == "config.patch":
             return {"ok": True}
         raise AssertionError(f"Unexpected method: {method}")
 
+    monkeypatch.setattr(agent_provisioning, "openclaw_connection", _fake_openclaw_connection)
     monkeypatch.setattr(agent_provisioning, "openclaw_call", _fake_openclaw_call)
     cp = agent_provisioning.OpenClawGatewayControlPlane(
         agent_provisioning.GatewayClientConfig(url="ws://gateway.example/ws", token=None),
@@ -500,19 +510,29 @@ async def test_control_plane_upsert_agent_create_then_update(monkeypatch):
 async def test_control_plane_upsert_agent_handles_already_exists(monkeypatch):
     calls: list[tuple[str, dict[str, object] | None]] = []
 
+    from contextlib import asynccontextmanager
+
+    @asynccontextmanager
+    async def _fake_openclaw_connection(*, config=None):
+        async def _call(method, params=None):
+            calls.append((method, params))
+            if method == "agents.create":
+                raise agent_provisioning.OpenClawGatewayError("already exists")
+            if method == "agents.update":
+                return {"ok": True}
+            raise AssertionError(f"Unexpected method in connection: {method}")
+        yield _call
+
     async def _fake_openclaw_call(method, params=None, config=None):
         _ = config
         calls.append((method, params))
-        if method == "agents.create":
-            raise agent_provisioning.OpenClawGatewayError("already exists")
-        if method == "agents.update":
-            return {"ok": True}
         if method == "config.get":
             return {"hash": None, "config": {"agents": {"list": []}}}
         if method == "config.patch":
             return {"ok": True}
         raise AssertionError(f"Unexpected method: {method}")
 
+    monkeypatch.setattr(agent_provisioning, "openclaw_connection", _fake_openclaw_connection)
     monkeypatch.setattr(agent_provisioning, "openclaw_call", _fake_openclaw_call)
     cp = agent_provisioning.OpenClawGatewayControlPlane(
         agent_provisioning.GatewayClientConfig(url="ws://gateway.example/ws", token=None),
