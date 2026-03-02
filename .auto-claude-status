@@ -3,23 +3,23 @@
   "spec": "031-sheduled-repeating-tasks",
   "state": "building",
   "subtasks": {
-    "completed": 2,
+    "completed": 5,
     "total": 17,
     "in_progress": 1,
     "failed": 0
   },
   "phase": {
-    "current": "Data Model & Migration",
+    "current": "Recurrence Service",
     "id": null,
-    "total": 3
+    "total": 2
   },
   "workers": {
     "active": 0,
     "max": 1
   },
   "session": {
-    "number": 4,
+    "number": 7,
     "started_at": "2026-03-02T02:29:52.886272"
   },
-  "last_update": "2026-03-02T02:44:33.794107"
+  "last_update": "2026-03-02T02:51:30.116502"
 }
