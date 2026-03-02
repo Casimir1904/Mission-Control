@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Package, Plus, ExternalLink } from "lucide-react";
 
 import { useAuth } from "@/auth/clerk";
 import { useQueryClient } from "@tanstack/react-query";
@@ -896,8 +897,27 @@ export default function SkillsMarketplacePage() {
                     title: "No marketplace skills yet",
                     description:
                       "Add packs first, then synced skills will appear here.",
-                    actionHref: "/skills/packs/new",
-                    actionLabel: "Add your first pack",
+                    quickActions: [
+                      {
+                        label: "Add pack",
+                        href: "/skills/packs/new",
+                        variant: "outline",
+                        icon: <Plus className="h-4 w-4" />,
+                      },
+                      {
+                        label: "Browse packs",
+                        href: "/skills/packs",
+                        variant: "outline",
+                        icon: <Package className="h-4 w-4" />,
+                      },
+                      {
+                        label: "Documentation",
+                        href: "/docs/skills",
+                        variant: "outline",
+                        icon: <ExternalLink className="h-4 w-4" />,
+                      },
+                    ],
+                    learnMoreHref: "/docs/skills",
                   }}
                 />
               </div>
