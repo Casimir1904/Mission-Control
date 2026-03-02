@@ -35,6 +35,7 @@ type HarnessProps = {
   emptyMessage?: string;
   emptyState?: React.ComponentProps<typeof DataTable<Row>>["emptyState"];
   rowActions?: React.ComponentProps<typeof DataTable<Row>>["rowActions"];
+  exportComponent?: React.ComponentProps<typeof DataTable<Row>>["export"];
 };
 
 function DataTableHarness({
@@ -43,6 +44,7 @@ function DataTableHarness({
   emptyMessage,
   emptyState,
   rowActions,
+  exportComponent,
 }: HarnessProps) {
   const columns: ColumnDef<Row>[] = [{ accessorKey: "name", header: "Name" }];
   // eslint-disable-next-line react-hooks/incompatible-library
@@ -59,6 +61,7 @@ function DataTableHarness({
       emptyMessage={emptyMessage}
       emptyState={emptyState}
       rowActions={rowActions}
+      export={exportComponent}
     />
   );
 }
@@ -164,5 +167,43 @@ describe("DataTable", () => {
       "href",
       "/new",
     );
+  });
+
+  it("renders export component when provided", () => {
+    const onExportCsv = vi.fn();
+    const onExportJson = vi.fn();
+
+    render(
+      <DataTableHarness
+        rows={[{ id: "row-1", name: "Alpha" }]}
+        exportComponent={
+          <div>
+            <button type="button" onClick={onExportCsv}>Export CSV</button>
+            <button type="button" onClick={onExportJson}>Export JSON</button>
+          </div>
+        }
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Export CSV" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Export JSON" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Export CSV" }));
+    expect(onExportCsv).toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Export JSON" }));
+    expect(onExportJson).toHaveBeenCalled();
+  });
+
+  it("does not render export section when export component is not provided", () => {
+    const { container } = render(
+      <DataTableHarness rows={[{ id: "row-1", name: "Alpha" }]} />,
+    );
+
+    // The export container should not exist
+    const exportContainer = container.querySelector(
+      ".flex.items-center.justify-end",
+    );
+    expect(exportContainer).not.toBeInTheDocument();
   });
 });

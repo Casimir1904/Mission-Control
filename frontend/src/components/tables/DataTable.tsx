@@ -40,6 +40,7 @@ type DataTableProps<TData> = {
   emptyMessage?: string;
   emptyState?: DataTableEmptyState;
   rowActions?: DataTableRowActions<TData>;
+  export?: ReactNode;
   stickyHeader?: boolean;
   tableClassName?: string;
   headerClassName?: string;
@@ -56,6 +57,7 @@ export function DataTable<TData>({
   emptyMessage = "No rows found.",
   emptyState,
   rowActions,
+  export: exportComponent,
   stickyHeader = false,
   tableClassName = "w-full text-left text-sm",
   headerClassName,
@@ -88,8 +90,14 @@ export function DataTable<TData>({
     (table.getVisibleLeafColumns().length || 1) + (hasRowActions ? 1 : 0);
 
   return (
-    <div className="overflow-x-auto">
-      <table className={tableClassName}>
+    <div className="space-y-4">
+      {exportComponent ? (
+        <div className="flex items-center justify-end">
+          {exportComponent}
+        </div>
+      ) : null}
+      <div className="overflow-x-auto">
+        <table className={tableClassName}>
         <thead
           className={
             headerClassName ??
@@ -214,6 +222,7 @@ export function DataTable<TData>({
           )}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }
