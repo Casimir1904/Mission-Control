@@ -4,6 +4,7 @@ import { SignedIn, SignedOut } from "@/auth/clerk";
 
 import { AdminOnlyNotice } from "@/components/auth/AdminOnlyNotice";
 import { SignedOutPanel } from "@/components/auth/SignedOutPanel";
+import { SkipLink } from "@/components/atoms/SkipLink";
 import { DashboardSidebar } from "@/components/organisms/DashboardSidebar";
 import { cn } from "@/lib/utils";
 
@@ -65,8 +66,10 @@ export function DashboardPageLayout({
         />
       </SignedOut>
       <SignedIn>
+        <SkipLink />
         <DashboardSidebar />
         <main
+          id="main-content"
           ref={mainRef}
           className={cn("flex-1 overflow-y-auto bg-slate-50", mainClassName)}
         >

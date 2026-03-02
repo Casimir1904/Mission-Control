@@ -35,6 +35,28 @@ body {
   border-color: var(--border);
 }
 
+/* Skip Link - Accessibility */
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 1rem;
+  z-index: 9999;
+  padding: 0.75rem 1.25rem;
+  background: var(--surface);
+  color: var(--text);
+  border: 2px solid var(--accent);
+  border-radius: 0.5rem;
+  font-weight: 500;
+  text-decoration: none;
+  box-shadow: var(--shadow-panel);
+  transition: top 0.2s ease;
+}
+
+.skip-link:focus {
+  top: 1rem;
+  outline: none;
+}
+
 @keyframes fade-in-up {
   from {
     opacity: 0;
