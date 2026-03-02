@@ -640,6 +640,7 @@ def _collect_pack_skills_with_warnings(
                 capture_output=True,
                 text=True,
                 timeout=GIT_CLONE_TIMEOUT_SECONDS,
+                shell=False,
             )
         except FileNotFoundError as exc:
             raise RuntimeError("git binary not available on the server") from exc
@@ -654,6 +655,7 @@ def _collect_pack_skills_with_warnings(
                         capture_output=True,
                         text=True,
                         timeout=GIT_CLONE_TIMEOUT_SECONDS,
+                        shell=False,
                     )
                     used_branch = "main"
                 except (
@@ -680,6 +682,7 @@ def _collect_pack_skills_with_warnings(
                 capture_output=True,
                 text=True,
                 timeout=GIT_REV_PARSE_TIMEOUT_SECONDS,
+                shell=False,
             ).stdout.strip()
         except (FileNotFoundError, subprocess.TimeoutExpired, subprocess.CalledProcessError):
             discovered_branch = used_branch or "main"
