@@ -3,7 +3,7 @@
   "spec": "002-datatable-export-to-csv-json",
   "state": "building",
   "subtasks": {
-    "completed": 1,
+    "completed": 3,
     "total": 4,
     "in_progress": 1,
     "failed": 0
@@ -18,8 +18,8 @@
     "max": 1
   },
   "session": {
-    "number": 3,
+    "number": 5,
     "started_at": "2026-03-02T02:02:55.330589"
   },
-  "last_update": "2026-03-02T02:40:24.993583"
+  "last_update": "2026-03-02T02:46:41.191949"
 }
