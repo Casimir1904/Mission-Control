@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import {
   type ColumnDef,
   type OnChangeFn,
+  type RowSelectionState,
   type SortingState,
   type Updater,
   getCoreRowModel,
@@ -28,6 +29,11 @@ type TagsTableProps = {
   emptyState?: Omit<DataTableEmptyState, "icon"> & {
     icon?: DataTableEmptyState["icon"];
   };
+  // Row selection props
+  enableRowSelection?: boolean;
+  rowSelection?: RowSelectionState;
+  onSelectionChange?: OnChangeFn<RowSelectionState>;
+  getRowId?: (row: TagRead) => string;
 };
 
 const DEFAULT_EMPTY_ICON = (
@@ -61,6 +67,11 @@ export function TagsTable({
   onEdit,
   onDelete,
   emptyState,
+  // Row selection props
+  enableRowSelection = false,
+  rowSelection,
+  onSelectionChange,
+  getRowId,
 }: TagsTableProps) {
   const [internalSorting, setInternalSorting] = useState<SortingState>([
     { id: "name", desc: false },
@@ -70,6 +81,15 @@ export function TagsTable({
     onSortingChange ??
     ((updater: Updater<SortingState>) => {
       setInternalSorting(updater);
+    });
+
+  const [internalRowSelection, setInternalRowSelection] =
+    useState<RowSelectionState>({});
+  const resolvedRowSelection = rowSelection ?? internalRowSelection;
+  const handleRowSelectionChange: OnChangeFn<RowSelectionState> =
+    onSelectionChange ??
+    ((updater: Updater<RowSelectionState>) => {
+      setInternalRowSelection(updater);
     });
 
   const columns = useMemo<ColumnDef<TagRead>[]>(
@@ -136,10 +156,14 @@ export function TagsTable({
   const table = useReactTable({
     data: tags,
     columns,
+    enableRowSelection,
     state: {
       sorting: resolvedSorting,
+      rowSelection: resolvedRowSelection,
     },
     onSortingChange: handleSortingChange,
+    onRowSelectionChange: handleRowSelectionChange,
+    getRowId,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
   });
@@ -149,6 +173,10 @@ export function TagsTable({
       table={table}
       isLoading={isLoading}
       stickyHeader={stickyHeader}
+      enableRowSelection={enableRowSelection}
+      rowSelection={resolvedRowSelection}
+      onSelectionChange={handleRowSelectionChange}
+      getRowId={getRowId}
       rowClassName="transition hover:bg-slate-50"
       cellClassName="px-6 py-4 align-top"
       rowActions={
