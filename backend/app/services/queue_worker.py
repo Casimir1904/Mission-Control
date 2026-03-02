@@ -15,6 +15,11 @@ from app.services.openclaw.lifecycle_queue import (
 )
 from app.services.openclaw.lifecycle_reconcile import process_lifecycle_queue_task
 from app.services.queue import QueuedTask, dequeue_task
+from app.services.recurrence_queue import TASK_TYPE as RECURRENCE_TASK_TYPE
+from app.services.recurrence_queue import (
+    decode_recurrence_task,
+    requeue_recurrence_task,
+)
 from app.services.webhooks.dispatch import (
     process_webhook_queue_task,
     requeue_webhook_queue_task,
@@ -23,6 +28,21 @@ from app.services.webhooks.queue import TASK_TYPE as WEBHOOK_TASK_TYPE
 
 logger = get_logger(__name__)
 _WORKER_BLOCK_TIMEOUT_SECONDS = 5.0
+
+
+async def process_recurrence_queue_task(task: QueuedTask) -> None:
+    """Process a recurrence task to generate the next task occurrence."""
+    payload = decode_recurrence_task(task)
+    # TODO: Implement next occurrence generation
+    # This is a placeholder for the actual implementation
+    logger.info(
+        "recurrence.process_task",
+        extra={
+            "task_id": str(payload.task_id),
+            "board_id": str(payload.board_id),
+            "scheduled_at": payload.scheduled_at.isoformat(),
+        },
+    )
 
 
 @dataclass(frozen=True)
@@ -40,6 +60,14 @@ _TASK_HANDLERS: dict[str, _TaskHandler] = {
             settings.rq_dispatch_retry_max_seconds,
         ),
         requeue=lambda task, delay: requeue_lifecycle_queue_task(task, delay_seconds=delay),
+    ),
+    RECURRENCE_TASK_TYPE: _TaskHandler(
+        handler=process_recurrence_queue_task,
+        attempts_to_delay=lambda attempts: min(
+            settings.rq_dispatch_retry_base_seconds * (2 ** max(0, attempts)),
+            settings.rq_dispatch_retry_max_seconds,
+        ),
+        requeue=lambda task, delay: requeue_recurrence_task(task, delay_seconds=delay),
     ),
     WEBHOOK_TASK_TYPE: _TaskHandler(
         handler=process_webhook_queue_task,
