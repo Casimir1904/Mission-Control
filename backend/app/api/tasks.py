@@ -61,6 +61,8 @@ from app.services.openclaw.gateway_dispatch import GatewayDispatchService
 from app.services.openclaw.gateway_rpc import GatewayConfig as GatewayClientConfig
 from app.services.openclaw.gateway_rpc import OpenClawGatewayError
 from app.services.organizations import require_board_access
+from app.services.recurrence import calculate_next_occurrence
+from app.services.recurrence_queue import QueuedRecurrenceTask, enqueue_recurrence_task
 from app.services.tags import (
     TagState,
     load_tag_state,
@@ -2140,6 +2142,40 @@ def _task_event_details(task: Task, previous_status: str) -> tuple[str, str]:
     return "task.updated", f"Task updated: {task.title}."
 
 
+async def _maybe_enqueue_next_recurrence(
+    session: AsyncSession,
+    *,
+    update: _TaskUpdateInput,
+) -> None:
+    """Enqueue next recurrence generation if task is marked done with recurrence_rule."""
+    # Only trigger when transitioning to done status
+    if update.task.status != "done":
+        return
+
+    # Check if task has a recurrence rule
+    recurrence_rule = update.task.recurrence_rule
+    if not recurrence_rule:
+        return
+
+    # Calculate next occurrence time based on recurrence rule
+    try:
+        from datetime import datetime
+
+        now = datetime.now(UTC)
+        next_occurrence = calculate_next_occurrence(recurrence_rule, now)
+    except (ValueError, KeyError):
+        # Invalid recurrence rule, skip enqueueing
+        return
+
+    # Enqueue the recurrence task for the calculated time
+    payload = QueuedRecurrenceTask(
+        task_id=update.task.id,
+        board_id=update.board_id,
+        scheduled_at=next_occurrence,
+    )
+    enqueue_recurrence_task(payload)
+
+
 async def _lead_notify_new_assignee(
     session: AsyncSession,
     *,
@@ -2645,6 +2681,10 @@ async def _finalize_updated_task(
     session.add(update.task)
     await session.commit()
     await session.refresh(update.task)
+
+    # Trigger next recurrence generation if task is marked done and has recurrence rule
+    await _maybe_enqueue_next_recurrence(session, update=update)
+
     await _record_task_comment_from_update(session, update=update)
     await _record_task_update_activity(session, update=update)
     await _notify_task_update_assignment_changes(session, update=update)
