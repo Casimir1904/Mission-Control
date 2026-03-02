@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import {
+  type ColumnFiltersState,
   type OnChangeFn,
   type SortingState,
   type Updater,
@@ -53,5 +54,35 @@ export const useTableSortingState = (
   return {
     resolvedSorting,
     handleSortingChange,
+  };
+};
+
+/**
+ * Small helper for supporting both controlled and uncontrolled table column filtering.
+ *
+ * TanStack Table expects a `columnFilters` state + `onColumnFiltersChange` callback.
+ * Some pages want to control this from the URL (shareable links), while others
+ * are fine letting the table manage it internally.
+ */
+export const useTableFilteringState = (
+  columnFilters: ColumnFiltersState | undefined,
+  onColumnFiltersChange: OnChangeFn<ColumnFiltersState> | undefined,
+  defaultColumnFilters: ColumnFiltersState,
+): {
+  resolvedColumnFilters: ColumnFiltersState;
+  handleColumnFiltersChange: OnChangeFn<ColumnFiltersState>;
+} => {
+  const [internalColumnFilters, setInternalColumnFilters] =
+    useState<ColumnFiltersState>(defaultColumnFilters);
+  const resolvedColumnFilters = columnFilters ?? internalColumnFilters;
+  const handleColumnFiltersChange: OnChangeFn<ColumnFiltersState> =
+    onColumnFiltersChange ??
+    ((updater: Updater<ColumnFiltersState>) => {
+      setInternalColumnFilters(updater);
+    });
+
+  return {
+    resolvedColumnFilters,
+    handleColumnFiltersChange,
   };
 };
