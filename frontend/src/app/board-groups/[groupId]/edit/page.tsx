@@ -35,8 +35,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import Link from "next/link";
-
 const slugify = (value: string) =>
   value
     .toLowerCase()
@@ -286,28 +284,18 @@ export default function EditBoardGroupPage() {
     [baseGroup?.name],
   );
 
-  const breadcrumbContent = useMemo(
+  const breadcrumb = useMemo(
     () => (
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
-            <BreadcrumbLink asChild>
-              <Link href="/">Home</Link>
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbLink asChild>
-              <Link href="/board-groups">Board groups</Link>
-            </BreadcrumbLink>
+            <BreadcrumbLink href="/board-groups">Board groups</BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
             {baseGroup ? (
-              <BreadcrumbLink asChild>
-                <Link href={`/board-groups/${groupId ?? ""}`}>
-                  {baseGroup.name}
-                </Link>
+              <BreadcrumbLink href={`/board-groups/${groupId ?? ""}`}>
+                {baseGroup.name}
               </BreadcrumbLink>
             ) : (
               <BreadcrumbPage>…</BreadcrumbPage>
@@ -331,7 +319,7 @@ export default function EditBoardGroupPage() {
       }}
       title={title}
       description="Update the shared context that connects boards in this group."
-      breadcrumbContent={breadcrumbContent}
+      breadcrumb={breadcrumb}
     >
       <form
         onSubmit={handleSubmit}

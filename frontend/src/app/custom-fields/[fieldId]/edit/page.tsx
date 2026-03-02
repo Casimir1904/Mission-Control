@@ -144,7 +144,7 @@ export default function EditCustomFieldPage() {
             <BreadcrumbSeparator />
             <BreadcrumbItem>
               <BreadcrumbLink href={`/custom-fields/${fieldId}`}>
-                {field?.name ?? "Custom field"}
+                {field?.label ?? "Custom field"}
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
