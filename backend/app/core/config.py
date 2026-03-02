@@ -54,6 +54,7 @@ class Settings(BaseSettings):
     security_header_x_frame_options: str = ""
     security_header_referrer_policy: str = ""
     security_header_permissions_policy: str = ""
+    security_header_strict_transport_security: str = ""
 
     # Database lifecycle
     db_auto_migrate: bool = False
@@ -90,8 +91,9 @@ class Settings(BaseSettings):
                 or len(token) < LOCAL_AUTH_TOKEN_MIN_LENGTH
                 or token.lower() in LOCAL_AUTH_TOKEN_PLACEHOLDERS
             ):
-                raise ValueError(
-                    "LOCAL_AUTH_TOKEN must be at least 50 characters and non-placeholder when AUTH_MODE=local.",
+                    raise ValueError(
+                    "LOCAL_AUTH_TOKEN must be at least 50 characters and "
+                    "non-placeholder when AUTH_MODE=local.",
                 )
         # In dev, default to applying Alembic migrations at startup to avoid
         # schema drift (e.g. missing newly-added columns).

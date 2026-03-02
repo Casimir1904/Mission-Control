@@ -15,6 +15,7 @@ class SecurityHeadersMiddleware:
     _X_FRAME_OPTIONS = b"x-frame-options"
     _REFERRER_POLICY = b"referrer-policy"
     _PERMISSIONS_POLICY = b"permissions-policy"
+    _STRICT_TRANSPORT_SECURITY = b"strict-transport-security"
 
     def __init__(
         self,
@@ -24,6 +25,7 @@ class SecurityHeadersMiddleware:
         x_frame_options: str = "",
         referrer_policy: str = "",
         permissions_policy: str = "",
+        strict_transport_security: str = "",
     ) -> None:
         self._app = app
         self._configured_headers = self._build_configured_headers(
@@ -31,6 +33,7 @@ class SecurityHeadersMiddleware:
             x_frame_options=x_frame_options,
             referrer_policy=referrer_policy,
             permissions_policy=permissions_policy,
+            strict_transport_security=strict_transport_security,
         )
 
     @classmethod
@@ -41,6 +44,7 @@ class SecurityHeadersMiddleware:
         x_frame_options: str,
         referrer_policy: str,
         permissions_policy: str,
+        strict_transport_security: str,
     ) -> tuple[tuple[bytes, bytes, bytes], ...]:
         configured: list[tuple[bytes, bytes, bytes]] = []
         for header_name, value in (
@@ -48,6 +52,7 @@ class SecurityHeadersMiddleware:
             (cls._X_FRAME_OPTIONS, x_frame_options),
             (cls._REFERRER_POLICY, referrer_policy),
             (cls._PERMISSIONS_POLICY, permissions_policy),
+            (cls._STRICT_TRANSPORT_SECURITY, strict_transport_security),
         ):
             normalized = value.strip()
             if not normalized:

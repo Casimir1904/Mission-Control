@@ -52,6 +52,36 @@ async def test_security_headers_middleware_appends_lowercase_raw_header_names() 
     assert b"X-Frame-Options" not in header_names
 
 
+@pytest.mark.asyncio
+async def test_security_headers_middleware_hsts_appends_lowercase_raw_header_names() -> None:
+    sent_messages: list[dict[str, object]] = []
+
+    async def app(scope, receive, send):  # type: ignore[no-untyped-def]
+        _ = scope
+        _ = receive
+        await send({"type": "http.response.start", "status": 200, "headers": []})
+        await send({"type": "http.response.body", "body": b"", "more_body": False})
+
+    async def capture(message):  # type: ignore[no-untyped-def]
+        sent_messages.append(message)
+
+    middleware = SecurityHeadersMiddleware(
+        app, strict_transport_security="max-age=31536000; includeSubDomains"
+    )
+    await middleware(
+        {"type": "http", "method": "GET", "path": "/", "headers": []}, lambda: None, capture
+    )
+
+    response_start = next(
+        message for message in sent_messages if message.get("type") == "http.response.start"
+    )
+    headers = response_start.get("headers")
+    assert isinstance(headers, list)
+    header_names = {name for name, _value in headers}
+    assert b"strict-transport-security" in header_names
+    assert b"Strict-Transport-Security" not in header_names
+
+
 def test_security_headers_middleware_injects_configured_headers() -> None:
     app = FastAPI()
     app.add_middleware(
@@ -60,6 +90,7 @@ def test_security_headers_middleware_injects_configured_headers() -> None:
         x_frame_options="SAMEORIGIN",
         referrer_policy="strict-origin-when-cross-origin",
         permissions_policy="camera=(), microphone=(), geolocation=()",
+        strict_transport_security="max-age=31536000; includeSubDomains",
     )
 
     @app.get("/ok")
@@ -73,6 +104,7 @@ def test_security_headers_middleware_injects_configured_headers() -> None:
     assert response.headers["x-frame-options"] == "SAMEORIGIN"
     assert response.headers["referrer-policy"] == "strict-origin-when-cross-origin"
     assert response.headers["permissions-policy"] == "camera=(), microphone=(), geolocation=()"
+    assert response.headers["strict-transport-security"] == "max-age=31536000; includeSubDomains"
 
 
 def test_security_headers_middleware_does_not_override_existing_values() -> None:
@@ -83,12 +115,14 @@ def test_security_headers_middleware_does_not_override_existing_values() -> None
         x_frame_options="SAMEORIGIN",
         referrer_policy="strict-origin-when-cross-origin",
         permissions_policy="camera=(), microphone=(), geolocation=()",
+        strict_transport_security="max-age=31536000; includeSubDomains",
     )
 
     @app.get("/already-set")
     def already_set(response: Response) -> dict[str, bool]:
         response.headers["X-Frame-Options"] = "ALLOWALL"
         response.headers["Referrer-Policy"] = "unsafe-url"
+        response.headers["Strict-Transport-Security"] = "max-age=0"
         return {"ok": True}
 
     response = TestClient(app).get("/already-set")
@@ -98,6 +132,7 @@ def test_security_headers_middleware_does_not_override_existing_values() -> None
     assert response.headers["x-frame-options"] == "ALLOWALL"
     assert response.headers["referrer-policy"] == "unsafe-url"
     assert response.headers["permissions-policy"] == "camera=(), microphone=(), geolocation=()"
+    assert response.headers["strict-transport-security"] == "max-age=0"
 
 
 def test_security_headers_middleware_includes_headers_on_cors_preflight() -> None:
@@ -145,3 +180,4 @@ def test_security_headers_middleware_skips_blank_config_values() -> None:
     assert response.headers.get("x-frame-options") is None
     assert response.headers.get("referrer-policy") is None
     assert response.headers.get("permissions-policy") is None
+    assert response.headers.get("strict-transport-security") is None
