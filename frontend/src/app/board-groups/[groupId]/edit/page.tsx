@@ -24,9 +24,18 @@ import type {
   BoardRead,
 } from "@/api/generated/model";
 import { DashboardPageLayout } from "@/components/templates/DashboardPageLayout";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import Link from "next/link";
 
 const slugify = (value: string) =>
   value
@@ -277,6 +286,43 @@ export default function EditBoardGroupPage() {
     [baseGroup?.name],
   );
 
+  const breadcrumbContent = useMemo(
+    () => (
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href="/">Home</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href="/board-groups">Board groups</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            {baseGroup ? (
+              <BreadcrumbLink asChild>
+                <Link href={`/board-groups/${groupId ?? ""}`}>
+                  {baseGroup.name}
+                </Link>
+              </BreadcrumbLink>
+            ) : (
+              <BreadcrumbPage>…</BreadcrumbPage>
+            )}
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>Edit</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+    ),
+    [baseGroup, groupId],
+  );
+
   return (
     <DashboardPageLayout
       signedOut={{
@@ -285,6 +331,7 @@ export default function EditBoardGroupPage() {
       }}
       title={title}
       description="Update the shared context that connects boards in this group."
+      breadcrumbContent={breadcrumbContent}
     >
       <form
         onSubmit={handleSubmit}
