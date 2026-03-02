@@ -1,0 +1,39 @@
+{
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": true
+  },
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Read(./**)",
+      "Write(./**)",
+      "Edit(./**)",
+      "Glob(./**)",
+      "Grep(./**)",
+      "Read(/Users/holgergundlach/Development/Mission-Control/.auto-claude/worktrees/tasks/004-toast-notification-system-for-mutations/**)",
+      "Write(/Users/holgergundlach/Development/Mission-Control/.auto-claude/worktrees/tasks/004-toast-notification-system-for-mutations/**)",
+      "Edit(/Users/holgergundlach/Development/Mission-Control/.auto-claude/worktrees/tasks/004-toast-notification-system-for-mutations/**)",
+      "Glob(/Users/holgergundlach/Development/Mission-Control/.auto-claude/worktrees/tasks/004-toast-notification-system-for-mutations/**)",
+      "Grep(/Users/holgergundlach/Development/Mission-Control/.auto-claude/worktrees/tasks/004-toast-notification-system-for-mutations/**)",
+      "Read(/Users/holgergundlach/Development/Mission-Control/.auto-claude/worktrees/tasks/004-toast-notification-system-for-mutations/.auto-claude/specs/004-toast-notification-system-for-mutations/**)",
+      "Write(/Users/holgergundlach/Development/Mission-Control/.auto-claude/worktrees/tasks/004-toast-notification-system-for-mutations/.auto-claude/specs/004-toast-notification-system-for-mutations/**)",
+      "Edit(/Users/holgergundlach/Development/Mission-Control/.auto-claude/worktrees/tasks/004-toast-notification-system-for-mutations/.auto-claude/specs/004-toast-notification-system-for-mutations/**)",
+      "Read(/Users/holgergundlach/Development/Mission-Control/.auto-claude/**)",
+      "Write(/Users/holgergundlach/Development/Mission-Control/.auto-claude/**)",
+      "Edit(/Users/holgergundlach/Development/Mission-Control/.auto-claude/**)",
+      "Glob(/Users/holgergundlach/Development/Mission-Control/.auto-claude/**)",
+      "Grep(/Users/holgergundlach/Development/Mission-Control/.auto-claude/**)",
+      "Bash(*)",
+      "WebFetch(*)",
+      "WebSearch(*)",
+      "mcp__context7__resolve-library-id(*)",
+      "mcp__context7__get-library-docs(*)",
+      "mcp__graphiti-memory__search_nodes(*)",
+      "mcp__graphiti-memory__search_facts(*)",
+      "mcp__graphiti-memory__add_episode(*)",
+      "mcp__graphiti-memory__get_episodes(*)",
+      "mcp__graphiti-memory__get_entity_edge(*)"
+    ]
+  }
+}
