@@ -254,6 +254,109 @@ describe("DataTable", () => {
     expect(exportContainer).not.toBeInTheDocument();
   });
 
+  it("renders enhanced empty state with quick actions", () => {
+    render(
+      <DataTableHarness
+        rows={[]}
+        emptyState={{
+          icon: <span data-testid="empty-icon">icon</span>,
+          title: "No customers yet",
+          description:
+            "Get started by creating a new customer or importing your existing list.",
+          quickActions: [
+            {
+              label: "Create Customer",
+              href: "/customers/new",
+            },
+            {
+              label: "Import",
+              href: "/customers/import",
+              variant: "secondary",
+            },
+          ],
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId("empty-icon")).toBeInTheDocument();
+    expect(screen.getByText("No customers yet")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Get started by creating a new customer or importing your existing list.",
+      ),
+    ).toBeInTheDocument();
+
+    const createLink = screen.getByRole("link", { name: "Create Customer" });
+    expect(createLink).toHaveAttribute("href", "/customers/new");
+
+    const importLink = screen.getByRole("link", { name: "Import" });
+    expect(importLink).toHaveAttribute("href", "/customers/import");
+  });
+
+  it("renders enhanced empty state with quick actions and learn more link", () => {
+    render(
+      <DataTableHarness
+        rows={[]}
+        emptyState={{
+          icon: <span data-testid="empty-icon">icon</span>,
+          title: "No projects",
+          description: "Create your first project to get started.",
+          quickActions: [
+            {
+              label: "Create Project",
+              href: "/projects/new",
+            },
+          ],
+          learnMoreHref: "/help/projects",
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId("empty-icon")).toBeInTheDocument();
+    expect(screen.getByText("No projects")).toBeInTheDocument();
+    expect(
+      screen.getByText("Create your first project to get started."),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.getByRole("link", { name: "Create Project" }),
+    ).toHaveAttribute("href", "/projects/new");
+
+    const learnMoreLink = screen.getByRole("link", { name: "Learn more" });
+    expect(learnMoreLink).toHaveAttribute("href", "/help/projects");
+  });
+
+  it("renders enhanced empty state with quick actions containing icons", () => {
+    render(
+      <DataTableHarness
+        rows={[]}
+        emptyState={{
+          icon: <span data-testid="empty-icon">icon</span>,
+          title: "No tasks",
+          description: "Create a task to get started.",
+          quickActions: [
+            {
+              label: "Add Task",
+              href: "/tasks/new",
+              icon: <span data-testid="plus-icon">+</span>,
+            },
+          ],
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId("empty-icon")).toBeInTheDocument();
+    expect(screen.getByText("No tasks")).toBeInTheDocument();
+    expect(
+      screen.getByText("Create a task to get started."),
+    ).toBeInTheDocument();
+
+    // When icon is present, the accessible name includes the icon text
+    const addTaskLink = screen.getByRole("link", { name: /Add Task/ });
+    expect(addTaskLink).toHaveAttribute("href", "/tasks/new");
+    expect(screen.getByTestId("plus-icon")).toBeInTheDocument();
+  });
+
   describe("row selection", () => {
     it("renders checkboxes when enableRowSelection is true", () => {
       render(

@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Bot, Code, HeadphonesIcon, Sparkles } from "lucide-react";
 
 import type { RowSelectionState } from "@tanstack/react-table";
 import { useAuth } from "@/auth/clerk";
@@ -214,9 +215,34 @@ export default function AgentsPage() {
             emptyState={{
               title: "No agents yet",
               description:
-                "Create your first agent to start executing tasks on this board.",
-              actionHref: "/agents/new",
-              actionLabel: "Create your first agent",
+                "Create your first agent to start executing tasks on this board. Agents run autonomously and check in periodically based on their heartbeat schedule.",
+              quickActions: [
+                {
+                  label: "Generalist",
+                  href: "/agents/new?role=generalist",
+                  variant: "outline",
+                  icon: <Bot className="h-4 w-4" />,
+                },
+                {
+                  label: "Developer",
+                  href: "/agents/new?role=developer",
+                  variant: "outline",
+                  icon: <Code className="h-4 w-4" />,
+                },
+                {
+                  label: "Support",
+                  href: "/agents/new?role=support",
+                  variant: "outline",
+                  icon: <HeadphonesIcon className="h-4 w-4" />,
+                },
+                {
+                  label: "Creative",
+                  href: "/agents/new?role=creative",
+                  variant: "outline",
+                  icon: <Sparkles className="h-4 w-4" />,
+                },
+              ],
+              learnMoreHref: "/docs/agents",
             }}
           />
         </div>

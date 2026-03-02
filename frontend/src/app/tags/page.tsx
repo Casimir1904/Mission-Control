@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import type { RowSelectionState } from "@tanstack/react-table";
 import { useAuth } from "@/auth/clerk";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Tag, Hash, Bookmark } from "lucide-react";
 
 import { ApiError } from "@/api/mutator";
 import {
@@ -165,8 +166,29 @@ export default function TagsPage() {
               title: "No tags yet",
               description:
                 "Create tags to classify and group tasks across your boards.",
-              actionHref: isAdmin ? "/tags/add" : undefined,
-              actionLabel: isAdmin ? "Create your first tag" : undefined,
+              quickActions: isAdmin
+                ? [
+                    {
+                      label: "Priority",
+                      href: "/tags/add?type=priority",
+                      variant: "outline",
+                      icon: <Bookmark className="h-4 w-4" />,
+                    },
+                    {
+                      label: "Category",
+                      href: "/tags/add?type=category",
+                      variant: "outline",
+                      icon: <Tag className="h-4 w-4" />,
+                    },
+                    {
+                      label: "Status",
+                      href: "/tags/add?type=status",
+                      variant: "outline",
+                      icon: <Hash className="h-4 w-4" />,
+                    },
+                  ]
+                : undefined,
+              learnMoreHref: "/docs/tags",
             }}
           />
         </div>

@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { GitBranch, Github, Globe } from "lucide-react";
 
 import { useAuth } from "@/auth/clerk";
 import { useQueryClient } from "@tanstack/react-query";
@@ -248,8 +249,27 @@ export default function SkillsPacksPage() {
               emptyState={{
                 title: "No packs yet",
                 description: "Add your first skill URL pack to get started.",
-                actionHref: "/skills/packs/new",
-                actionLabel: "Add your first pack",
+                quickActions: [
+                  {
+                    label: "GitHub",
+                    href: "/skills/packs/new?source=github",
+                    variant: "outline",
+                    icon: <Github className="h-4 w-4" />,
+                  },
+                  {
+                    label: "Git",
+                    href: "/skills/packs/new?source=git",
+                    variant: "outline",
+                    icon: <GitBranch className="h-4 w-4" />,
+                  },
+                  {
+                    label: "URL",
+                    href: "/skills/packs/new?source=url",
+                    variant: "outline",
+                    icon: <Globe className="h-4 w-4" />,
+                  },
+                ],
+                learnMoreHref: "/docs/skill-packs",
               }}
             />
           </div>

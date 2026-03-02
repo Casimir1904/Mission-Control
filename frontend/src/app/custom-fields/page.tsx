@@ -7,6 +7,7 @@ import Link from "next/link";
 
 import { useAuth } from "@/auth/clerk";
 import { useQueryClient } from "@tanstack/react-query";
+import { Text, Hash, Calendar, ToggleLeft } from "lucide-react";
 
 import { ApiError } from "@/api/mutator";
 import {
@@ -116,8 +117,35 @@ export default function CustomFieldsPage() {
               title: "No custom fields yet",
               description:
                 "Create organization-level custom fields that appear on every task.",
-              actionHref: isAdmin ? "/custom-fields/new" : undefined,
-              actionLabel: isAdmin ? "Create your first field" : undefined,
+              quickActions: isAdmin
+                ? [
+                    {
+                      label: "Text",
+                      href: "/custom-fields/new?type=text",
+                      variant: "outline",
+                      icon: <Text className="h-4 w-4" />,
+                    },
+                    {
+                      label: "Number",
+                      href: "/custom-fields/new?type=number",
+                      variant: "outline",
+                      icon: <Hash className="h-4 w-4" />,
+                    },
+                    {
+                      label: "Date",
+                      href: "/custom-fields/new?type=date",
+                      variant: "outline",
+                      icon: <Calendar className="h-4 w-4" />,
+                    },
+                    {
+                      label: "Boolean",
+                      href: "/custom-fields/new?type=boolean",
+                      variant: "outline",
+                      icon: <ToggleLeft className="h-4 w-4" />,
+                    },
+                  ]
+                : undefined,
+              learnMoreHref: "/docs/custom-fields",
             }}
           />
         </div>

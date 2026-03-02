@@ -13,7 +13,7 @@ import {
 } from "@tanstack/react-table";
 
 import { type AgentRead, type BoardRead } from "@/api/generated/model";
-import { DataTable } from "@/components/tables/DataTable";
+import { DataTable, type DataTableEmptyState } from "@/components/tables/DataTable";
 import {
   dateCell,
   linkifyCell,
@@ -21,12 +21,8 @@ import {
 } from "@/components/tables/cell-formatters";
 import { truncateText as truncate } from "@/lib/formatters";
 
-type AgentsTableEmptyState = {
-  title: string;
-  description: string;
+type AgentsTableEmptyState = Omit<DataTableEmptyState, "icon"> & {
   icon?: ReactNode;
-  actionHref?: string;
-  actionLabel?: string;
 };
 
 type AgentsTableProps = {
@@ -224,6 +220,8 @@ export function AgentsTable({
               description: emptyState.description,
               actionHref: emptyState.actionHref,
               actionLabel: emptyState.actionLabel,
+              quickActions: emptyState.quickActions,
+              learnMoreHref: emptyState.learnMoreHref,
             }
           : undefined
       }

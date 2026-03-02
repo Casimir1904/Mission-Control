@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { Server, Cloud, Laptop } from "lucide-react";
 
 import { useAuth } from "@/auth/clerk";
 import { useQueryClient } from "@tanstack/react-query";
@@ -126,8 +127,27 @@ export default function GatewaysPage() {
               title: "No gateways yet",
               description:
                 "Create your first gateway to connect boards and start managing your OpenClaw connections.",
-              actionHref: "/gateways/new",
-              actionLabel: "Create your first gateway",
+              quickActions: [
+                {
+                  label: "Local",
+                  href: "/gateways/new?type=local",
+                  variant: "outline",
+                  icon: <Laptop className="h-4 w-4" />,
+                },
+                {
+                  label: "Cloud",
+                  href: "/gateways/new?type=cloud",
+                  variant: "outline",
+                  icon: <Cloud className="h-4 w-4" />,
+                },
+                {
+                  label: "Dedicated",
+                  href: "/gateways/new?type=dedicated",
+                  variant: "outline",
+                  icon: <Server className="h-4 w-4" />,
+                },
+              ],
+              learnMoreHref: "/docs/gateways",
             }}
           />
         </div>

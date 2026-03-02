@@ -1,0 +1,29 @@
+{
+  "project_type": "monorepo",
+  "services": {
+    "frontend": {
+      "path": "./frontend",
+      "tech_stack": ["next.js", "react", "typescript", "tailwindcss"],
+      "port": 3000,
+      "dev_command": "npm run dev",
+      "test_command": "npm test"
+    },
+    "backend": {
+      "path": "./backend",
+      "tech_stack": ["python", "fastapi"],
+      "port": 8000,
+      "dev_command": "uvicorn main:app --reload",
+      "test_command": "pytest"
+    }
+  },
+  "infrastructure": {
+    "docker": true,
+    "database": "postgresql"
+  },
+  "conventions": {
+    "linter": "eslint",
+    "formatter": "prettier",
+    "testing": "vitest",
+    "e2e": "cypress"
+  }
+}

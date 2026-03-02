@@ -147,6 +147,8 @@ export function BoardGroupsTable({
               description: emptyState.description,
               actionHref: emptyState.actionHref,
               actionLabel: emptyState.actionLabel,
+              quickActions: emptyState.quickActions,
+              learnMoreHref: emptyState.learnMoreHref,
             }
           : undefined
       }

@@ -10,10 +10,19 @@ import {
 } from "@tanstack/react-table";
 
 import {
+  EnhancedEmptyStateRow,
   TableEmptyStateRow,
   TableLoadingRow,
 } from "@/components/ui/table-state";
 import { Button, buttonVariants } from "@/components/ui/button";
+import type { VariantProps } from "class-variance-authority";
+
+type QuickAction = {
+  label: string;
+  href: string;
+  variant?: VariantProps<typeof buttonVariants>["variant"];
+  icon?: ReactNode;
+};
 
 export type DataTableEmptyState = {
   icon: ReactNode;
@@ -21,6 +30,8 @@ export type DataTableEmptyState = {
   description: string;
   actionHref?: string;
   actionLabel?: string;
+  quickActions?: QuickAction[];
+  learnMoreHref?: string;
 };
 
 export type DataTableRowAction<TData> = {
@@ -251,14 +262,25 @@ export function DataTable<TData>({
               </tr>
             ))
           ) : emptyState ? (
-            <TableEmptyStateRow
-              colSpan={colSpan}
-              icon={emptyState.icon}
-              title={emptyState.title}
-              description={emptyState.description}
-              actionHref={emptyState.actionHref}
-              actionLabel={emptyState.actionLabel}
-            />
+            emptyState.quickActions ? (
+              <EnhancedEmptyStateRow
+                colSpan={colSpan}
+                icon={emptyState.icon}
+                title={emptyState.title}
+                description={emptyState.description}
+                quickActions={emptyState.quickActions}
+                learnMoreHref={emptyState.learnMoreHref}
+              />
+            ) : (
+              <TableEmptyStateRow
+                colSpan={colSpan}
+                icon={emptyState.icon}
+                title={emptyState.title}
+                description={emptyState.description}
+                actionHref={emptyState.actionHref}
+                actionLabel={emptyState.actionLabel}
+              />
+            )
           ) : (
             <tr>
               <td

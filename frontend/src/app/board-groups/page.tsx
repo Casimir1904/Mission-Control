@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { Folder, LayoutGrid, Briefcase } from "lucide-react";
 
 import { useAuth } from "@/auth/clerk";
 import { useQueryClient } from "@tanstack/react-query";
@@ -115,8 +116,27 @@ export default function BoardGroupsPage() {
               title: "No groups yet",
               description:
                 "Create a board group to increase cross-board visibility for agents.",
-              actionHref: "/board-groups/new",
-              actionLabel: "Create your first group",
+              quickActions: [
+                {
+                  label: "Product",
+                  href: "/board-groups/new?type=product",
+                  variant: "outline",
+                  icon: <Briefcase className="h-4 w-4" />,
+                },
+                {
+                  label: "Team",
+                  href: "/board-groups/new?type=team",
+                  variant: "outline",
+                  icon: <LayoutGrid className="h-4 w-4" />,
+                },
+                {
+                  label: "General",
+                  href: "/board-groups/new?type=general",
+                  variant: "outline",
+                  icon: <Folder className="h-4 w-4" />,
+                },
+              ],
+              learnMoreHref: "/docs/board-groups",
             }}
           />
         </div>
