@@ -12,7 +12,7 @@ import {
   type listBoardsApiV1BoardsGetResponse,
   useListBoardsApiV1BoardsGet,
 } from "@/api/generated/boards/boards";
-import { useCreateAgentApiV1AgentsPost } from "@/api/generated/agents/agents";
+import { useCreateAgentWithToast } from "@/lib/api-hooks-toast";
 import { useOrganizationMembership } from "@/lib/use-organization-membership";
 import type { BoardRead } from "@/api/generated/model";
 import { DashboardPageLayout } from "@/components/templates/DashboardPageLayout";
@@ -79,7 +79,6 @@ export default function NewAgentPage() {
   const [identityProfile, setIdentityProfile] = useState<IdentityProfile>({
     ...DEFAULT_IDENTITY_PROFILE,
   });
-  const [error, setError] = useState<string | null>(null);
 
   const boardsQuery = useListBoardsApiV1BoardsGet<
     listBoardsApiV1BoardsGetResponse,
@@ -91,16 +90,11 @@ export default function NewAgentPage() {
     },
   });
 
-  const createAgentMutation = useCreateAgentApiV1AgentsPost<ApiError>({
-    mutation: {
-      onSuccess: (result) => {
-        if (result.status === 200) {
-          router.push(`/agents/${result.data.id}`);
-        }
-      },
-      onError: (err) => {
-        setError(err.message || "Something went wrong.");
-      },
+  const createAgentMutation = useCreateAgentWithToast({
+    onSuccess: (result) => {
+      if (result.status === 200) {
+        router.push(`/agents/${result.data.id}`);
+      }
     },
   });
 
@@ -108,22 +102,19 @@ export default function NewAgentPage() {
     boardsQuery.data?.status === 200 ? (boardsQuery.data.data.items ?? []) : [];
   const displayBoardId = boardId || boards[0]?.id || "";
   const isLoading = boardsQuery.isLoading || createAgentMutation.isPending;
-  const errorMessage = error ?? boardsQuery.error?.message ?? null;
+  const errorMessage = boardsQuery.error?.message ?? null;
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!isSignedIn) return;
     const trimmed = name.trim();
     if (!trimmed) {
-      setError("Agent name is required.");
       return;
     }
     const resolvedBoardId = displayBoardId;
     if (!resolvedBoardId) {
-      setError("Select a board before creating an agent.");
       return;
     }
-    setError(null);
     createAgentMutation.mutate({
       data: {
         name: trimmed,

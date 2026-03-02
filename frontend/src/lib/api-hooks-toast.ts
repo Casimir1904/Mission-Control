@@ -37,6 +37,9 @@ import type {
   ImportAgentEntry,
 } from "./api-hooks";
 
+// Import types from generated models
+import type { AgentRead, AgentCreate } from "@/api/generated/model";
+
 // Re-export all query hooks and keys from api-hooks (they don't need toast wrapping)
 export {
   useListAgentRoles,
@@ -374,6 +377,29 @@ export function useArchiveChatSessionWithToast(
       }).then((res) => res.json()),
     successMessage: options?.successMessage ?? "Chat session archived",
     errorMessage: options?.errorMessage ?? "Failed to archive chat session",
+  });
+}
+
+// ── Agents ───────────────────────────────────────────────────────────────────
+
+export type UseCreateAgentWithToastOptions = Partial<
+  UseMutationOptions<ApiResponse<AgentRead>, ApiError, { data: AgentCreate }>
+> &
+  ToastMessages;
+
+export function useCreateAgentWithToast(
+  options?: UseCreateAgentWithToastOptions,
+): UseMutationResult<ApiResponse<AgentRead>, ApiError, { data: AgentCreate }> {
+  return useMutationWithToast<ApiResponse<AgentRead>, ApiError, { data: AgentCreate }>({
+    ...options,
+    mutationFn: ({ data }) =>
+      fetch("/api/v1/agents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }).then((res) => res.json()),
+    successMessage: options?.successMessage ?? "Agent created",
+    errorMessage: options?.errorMessage ?? "Failed to create agent",
   });
 }
 
