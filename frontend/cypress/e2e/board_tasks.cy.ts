@@ -301,4 +301,183 @@ describe("/boards/:id task board", () => {
 
     cy.contains("Inbox task").should("not.exist");
   });
+
+  it("keyboard navigation: move task between columns using keyboard", () => {
+    stubEmptySse();
+
+    cy.intercept("GET", `${apiBase}/organizations/me/member*`, {
+      statusCode: 200,
+      body: {
+        id: "m1",
+        organization_id: "o1",
+        user_id: "u1",
+        role: "owner",
+        all_boards_read: true,
+        all_boards_write: true,
+        created_at: "2026-02-11T00:00:00Z",
+        updated_at: "2026-02-11T00:00:00Z",
+        board_access: [{ board_id: "b1", can_read: true, can_write: true }],
+      },
+    }).as("membership");
+
+    cy.intercept("GET", `${apiBase}/users/me*`, {
+      statusCode: 200,
+      body: {
+        id: "u1",
+        clerk_user_id: "clerk_u1",
+        email,
+        name: "Jane Test",
+        preferred_name: "Jane",
+        timezone: "America/New_York",
+        is_super_admin: false,
+      },
+    }).as("me");
+
+    cy.intercept("GET", `${apiBase}/organizations/me/list*`, {
+      statusCode: 200,
+      body: [
+        { id: "o1", name: "Personal", role: "owner", is_active: true },
+      ],
+    }).as("organizations");
+
+    cy.intercept("GET", `${apiBase}/tags*`, {
+      statusCode: 200,
+      body: { items: [], total: 0, limit: 200, offset: 0 },
+    }).as("tags");
+
+    cy.intercept("GET", `${apiBase}/organizations/me/custom-fields*`, {
+      statusCode: 200,
+      body: [],
+    }).as("customFields");
+
+    cy.intercept("GET", `${apiBase}/boards/b1/snapshot*`, {
+      statusCode: 200,
+      body: {
+        board: {
+          id: "b1",
+          name: "Demo Board",
+          slug: "demo-board",
+          description: "Demo",
+          gateway_id: "g1",
+          board_group_id: null,
+          board_type: "general",
+          objective: null,
+          success_metrics: null,
+          target_date: null,
+          goal_confirmed: true,
+          goal_source: "test",
+          organization_id: "o1",
+          created_at: "2026-02-11T00:00:00Z",
+          updated_at: "2026-02-11T00:00:00Z",
+        },
+        tasks: [
+          {
+            id: "t1",
+            board_id: "b1",
+            title: "Keyboard Test Task",
+            description: "",
+            status: "inbox",
+            priority: "medium",
+            due_at: null,
+            assigned_agent_id: null,
+            depends_on_task_ids: [],
+            created_by_user_id: null,
+            in_progress_at: null,
+            created_at: "2026-02-11T00:00:00Z",
+            updated_at: "2026-02-11T00:00:00Z",
+            blocked_by_task_ids: [],
+            is_blocked: false,
+            assignee: null,
+            approvals_count: 0,
+            approvals_pending_count: 0,
+          },
+        ],
+        agents: [],
+        approvals: [],
+        chat_messages: [],
+        pending_approvals_count: 0,
+      },
+    }).as("snapshot");
+
+    cy.intercept("GET", `${apiBase}/boards/b1/group-snapshot*`, {
+      statusCode: 200,
+      body: { group: null, boards: [] },
+    }).as("groupSnapshot");
+
+    // Intercept and verify the PATCH request for task status update
+    cy.intercept("PATCH", `${apiBase}/boards/b1/tasks/t1`, (req) => {
+      expect(req.body).to.have.property("status", "in_progress");
+      req.reply({
+        statusCode: 200,
+        body: {
+          id: "t1",
+          board_id: "b1",
+          title: "Keyboard Test Task",
+          description: "",
+          status: "in_progress",
+          priority: "medium",
+          due_at: null,
+          assigned_agent_id: null,
+          depends_on_task_ids: [],
+          created_by_user_id: null,
+          in_progress_at: "2026-02-11T00:00:01Z",
+          created_at: "2026-02-11T00:00:00Z",
+          updated_at: "2026-02-11T00:00:01Z",
+          blocked_by_task_ids: [],
+          is_blocked: false,
+          assignee: null,
+          approvals_count: 0,
+          approvals_pending_count: 0,
+        },
+      });
+    }).as("updateTaskStatus");
+
+    cy.loginWithLocalAuth();
+    cy.visit("/boards/b1");
+    cy.waitForAppLoaded();
+
+    cy.wait([
+      "@snapshot",
+      "@groupSnapshot",
+      "@membership",
+      "@me",
+      "@organizations",
+      "@tags",
+      "@customFields",
+    ]);
+
+    // Verify task is initially in Inbox column
+    cy.contains("Keyboard Test Task").should("be.visible");
+
+    // Tab to the task board and focus it
+    cy.get('[data-testid="task-board"]').focus();
+
+    // Navigate to the task card using arrow keys
+    cy.focused().type("{downarrow}");
+
+    // Task card should now be focused
+    cy.contains("Keyboard Test Task")
+      .should("have.focus");
+
+    // Press Enter to activate move mode
+    cy.focused().type("{enter}");
+
+    // Press right arrow to move to next column (in_progress)
+    cy.focused().type("{rightarrow}");
+
+    // Press Enter to confirm the move
+    cy.focused().type("{enter}");
+
+    // Verify backend PATCH request was made with correct status
+    cy.wait("@updateTaskStatus").its("request.body.status").should("eq", "in_progress");
+
+    // Verify task visually moved to "In Progress" column
+    // The task should now appear in the In Progress column
+    cy.get('[role="list"][aria-label="In Progress column"]')
+      .should("contain", "Keyboard Test Task");
+
+    // Verify the task is no longer in the Inbox column
+    cy.get('[role="list"][aria-label="Inbox column"]')
+      .should("not.contain", "Keyboard Test Task");
+  });
 });
