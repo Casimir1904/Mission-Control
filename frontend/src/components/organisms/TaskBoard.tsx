@@ -1,5 +1,6 @@
 "use client";
 
+import { Keyboard } from "lucide-react";
 import {
   memo,
   useCallback,
@@ -10,6 +11,12 @@ import {
 } from "react";
 
 import { TaskCard } from "@/components/molecules/TaskCard";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { parseApiDatetime } from "@/lib/datetime";
 import { cn } from "@/lib/utils";
 
@@ -739,28 +746,96 @@ export const TaskBoard = memo(function TaskBoard({
   }, [announcement, keyboardNav, tasks]);
 
   return (
-    <div
-      ref={boardRef}
-      data-testid="task-board"
-      tabIndex={0}
-      role="region"
-      aria-label="Task board"
-      onKeyDown={handleBoardKeyDown}
-      onBlur={handleBoardBlur}
-      className={cn(
-        // Mobile-first: stack columns vertically to avoid horizontal scrolling.
-        "grid grid-cols-1 gap-4 overflow-x-hidden pb-6",
-        // Desktop/tablet: switch back to horizontally scrollable kanban columns.
-        "sm:grid-flow-col sm:auto-cols-[minmax(260px,320px)] sm:grid-cols-none sm:overflow-x-auto",
-        // Focus styles for keyboard navigation
-        "focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2",
-      )}
-    >
-      {/* Live region for keyboard move announcements */}
-      <div className="sr-only" aria-live="polite" aria-atomic="true">
-        {getLiveRegionText()}
-      </div>
-      {columns.map((column) => {
+    <TooltipProvider delayDuration={0}>
+      <div
+        ref={boardRef}
+        data-testid="task-board"
+        tabIndex={0}
+        role="region"
+        aria-label="Task board"
+        onKeyDown={handleBoardKeyDown}
+        onBlur={handleBoardBlur}
+        className={cn(
+          // Mobile-first: stack columns vertically to avoid horizontal scrolling.
+          "group/grid grid grid-cols-1 gap-4 overflow-x-hidden pb-6",
+          // Desktop/tablet: switch back to horizontally scrollable kanban columns.
+          "sm:grid-flow-col sm:auto-cols-[minmax(260px,320px)] sm:grid-cols-none sm:overflow-x-auto",
+          // Focus styles for keyboard navigation
+          "focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2",
+        )}
+      >
+        {/* Live region for keyboard move announcements */}
+        <div className="sr-only" aria-live="polite" aria-atomic="true">
+          {getLiveRegionText()}
+        </div>
+
+        {/* Keyboard shortcuts help tooltip - visible on focus/hover */}
+        {!readOnly && (
+          <div className="col-span-full flex justify-end px-1 sm:absolute sm:right-4 sm:top-0 sm:z-20">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-500 shadow-sm transition-all",
+                    "hover:border-slate-300 hover:text-slate-700",
+                    "focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/20",
+                    // Show when board is focused or on hover
+                    "opacity-0 transition-opacity duration-200",
+                    "group-focus-within/grid:opacity-100 hover:opacity-100",
+                    // Always show on mobile
+                    "max-sm:opacity-100",
+                  )}
+                  aria-label="Keyboard shortcuts help"
+                >
+                  <Keyboard className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span className="hidden sm:inline">Keyboard shortcuts</span>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent
+                side="bottom"
+                align="end"
+                className="max-w-xs space-y-2 p-3"
+              >
+                <p className="font-semibold">Keyboard Navigation</p>
+                <ul className="space-y-1 text-slate-300">
+                  <li className="flex items-center gap-2">
+                    <kbd className="rounded bg-slate-700 px-1.5 py-0.5 font-mono text-[10px]">
+                      ↑↓←→
+                    </kbd>
+                    <span>Navigate between tasks</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <kbd className="rounded bg-slate-700 px-1.5 py-0.5 font-mono text-[10px]">
+                      Enter
+                    </kbd>
+                    <span>Activate move mode</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <kbd className="rounded bg-slate-700 px-1.5 py-0.5 font-mono text-[10px]">
+                      ←→
+                    </kbd>
+                    <span>Select target column (in move mode)</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <kbd className="rounded bg-slate-700 px-1.5 py-0.5 font-mono text-[10px]">
+                      Enter
+                    </kbd>
+                    <span>Confirm move</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <kbd className="rounded bg-slate-700 px-1.5 py-0.5 font-mono text-[10px]">
+                      Esc
+                    </kbd>
+                    <span>Cancel move mode</span>
+                  </li>
+                </ul>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        )}
+
+        {columns.map((column) => {
         const columnTasks = grouped[column.status] ?? [];
         // Derive review tab counts and the active subset from one canonical task list.
         const reviewCounts =
@@ -932,6 +1007,7 @@ export const TaskBoard = memo(function TaskBoard({
         );
       })}
     </div>
+    </TooltipProvider>
   );
 });
 
