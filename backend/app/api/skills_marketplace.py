@@ -173,9 +173,23 @@ def _validate_pack_source_url(source_url: str) -> None:
     - allow only https URLs
     - block localhost
     - block literal private/loopback/link-local IPs
+    - block URLs with embedded newlines, carriage returns, or null bytes
+    - block URLs with shell metacharacters
 
     Note: DNS-based private resolution is not checked here.
     """
+    # Reject URLs with embedded null bytes (argument injection defense)
+    if "\x00" in source_url:
+        raise ValueError("Pack source URL contains invalid characters")
+
+    # Reject URLs with newlines or carriage returns (command injection defense)
+    if any(ch in source_url for ch in {"\n", "\r"}):
+        raise ValueError("Pack source URL contains invalid characters")
+
+    # Reject URLs with common shell metacharacters (defense-in-depth for subprocess)
+    dangerous_shell_chars = set(";|&`$()")
+    if any(ch in source_url for ch in dangerous_shell_chars):
+        raise ValueError("Pack source URL contains invalid characters")
 
     parsed = urlparse(source_url)
     scheme = (parsed.scheme or "").lower()
