@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { Columns, Timer, MessageSquare } from "lucide-react";
 
 import { useAuth } from "@/auth/clerk";
 import { useQueryClient } from "@tanstack/react-query";
@@ -148,8 +149,27 @@ export default function BoardsPage() {
               title: "No boards yet",
               description:
                 "Create your first board to start routing tasks and monitoring work across agents.",
-              actionHref: "/boards/new",
-              actionLabel: "Create your first board",
+              quickActions: [
+                {
+                  label: "Kanban",
+                  href: "/boards/new?template=kanban",
+                  variant: "outline",
+                  icon: <Columns className="h-4 w-4" />,
+                },
+                {
+                  label: "Sprint",
+                  href: "/boards/new?template=sprint",
+                  variant: "outline",
+                  icon: <Timer className="h-4 w-4" />,
+                },
+                {
+                  label: "Support",
+                  href: "/boards/new?template=support",
+                  variant: "outline",
+                  icon: <MessageSquare className="h-4 w-4" />,
+                },
+              ],
+              learnMoreHref: "/docs/boards",
             }}
           />
         </div>
