@@ -29,6 +29,7 @@ type Task = {
   depends_on_task_ids?: string[];
   blocked_by_task_ids?: string[];
   is_blocked?: boolean;
+  recurrence_rule?: Record<string, unknown> | null;
 };
 
 type TaskBoardProps = {
@@ -504,6 +505,7 @@ export const TaskBoard = memo(function TaskBoard({
                         tags={task.tags}
                         isBlocked={task.is_blocked}
                         blockedByCount={task.blocked_by_task_ids?.length ?? 0}
+                        isRecurring={Boolean(task.recurrence_rule)}
                         onClick={() => onTaskSelect?.(task)}
                         draggable={!readOnly && !task.is_blocked}
                         isDragging={draggingId === task.id}
