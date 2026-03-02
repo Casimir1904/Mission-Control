@@ -16,7 +16,6 @@ import {
   type DataTableEmptyState,
 } from "@/components/tables/DataTable";
 import { dateCell } from "@/components/tables/cell-formatters";
-import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   SKILLS_TABLE_EMPTY_ICON,
@@ -245,44 +244,10 @@ export function MarketplaceSkillsTable({
         header: "Updated",
         cell: ({ row }) => dateCell(row.original.updated_at),
       },
-      {
-        id: "actions",
-        header: "",
-        enableSorting: false,
-        cell: ({ row }) => (
-          <div className="flex justify-end gap-2">
-            {getEditHref ? (
-              <Link
-                href={getEditHref(row.original)}
-                className={buttonVariants({ variant: "ghost", size: "sm" })}
-              >
-                Edit
-              </Link>
-            ) : null}
-            {onDelete ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => onDelete(row.original)}
-                disabled={isMutating}
-              >
-                Delete
-              </Button>
-            ) : null}
-          </div>
-        ),
-      },
     ];
 
     return baseColumns;
-  }, [
-    getEditHref,
-    installedGatewayNamesBySkillId,
-    isMutating,
-    onDelete,
-    onSkillClick,
-  ]);
+  }, [installedGatewayNamesBySkillId, onSkillClick]);
 
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
@@ -304,6 +269,32 @@ export function MarketplaceSkillsTable({
       stickyHeader={stickyHeader}
       rowClassName="transition hover:bg-slate-50"
       cellClassName="px-6 py-4 align-top"
+      rowActions={
+        getEditHref || onDelete
+          ? {
+              actions: [
+                ...(getEditHref
+                  ? [
+                      {
+                        key: "edit",
+                        label: "Edit",
+                        href: getEditHref,
+                      },
+                    ]
+                  : []),
+                ...(onDelete
+                  ? [
+                      {
+                        key: "delete",
+                        label: "Delete",
+                        onClick: onDelete,
+                      },
+                    ]
+                  : []),
+              ],
+            }
+          : undefined
+      }
       emptyState={
         emptyState
           ? {
@@ -312,6 +303,8 @@ export function MarketplaceSkillsTable({
               description: emptyState.description,
               actionHref: emptyState.actionHref,
               actionLabel: emptyState.actionLabel,
+              quickActions: emptyState.quickActions,
+              learnMoreHref: emptyState.learnMoreHref,
             }
           : undefined
       }

@@ -164,8 +164,26 @@ export function SkillPacksTable({
       rowActions={
         getEditHref || onDelete
           ? {
-              ...(getEditHref ? { getEditHref } : {}),
-              ...(onDelete ? { onDelete } : {}),
+              actions: [
+                ...(getEditHref
+                  ? [
+                      {
+                        key: "edit",
+                        label: "Edit",
+                        href: getEditHref,
+                      },
+                    ]
+                  : []),
+                ...(onDelete
+                  ? [
+                      {
+                        key: "delete",
+                        label: "Delete",
+                        onClick: onDelete,
+                      },
+                    ]
+                  : []),
+              ],
             }
           : undefined
       }
@@ -177,6 +195,8 @@ export function SkillPacksTable({
               description: emptyState.description,
               actionHref: emptyState.actionHref,
               actionLabel: emptyState.actionLabel,
+              quickActions: emptyState.quickActions,
+              learnMoreHref: emptyState.learnMoreHref,
             }
           : undefined
       }
