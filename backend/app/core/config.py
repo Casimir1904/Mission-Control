@@ -91,8 +91,9 @@ class Settings(BaseSettings):
                 or len(token) < LOCAL_AUTH_TOKEN_MIN_LENGTH
                 or token.lower() in LOCAL_AUTH_TOKEN_PLACEHOLDERS
             ):
-                raise ValueError(
-                    "LOCAL_AUTH_TOKEN must be at least 50 characters and non-placeholder when AUTH_MODE=local.",
+                    raise ValueError(
+                    "LOCAL_AUTH_TOKEN must be at least 50 characters and "
+                    "non-placeholder when AUTH_MODE=local.",
                 )
         # In dev, default to applying Alembic migrations at startup to avoid
         # schema drift (e.g. missing newly-added columns).
