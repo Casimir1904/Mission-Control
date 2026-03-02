@@ -1,0 +1,25 @@
+{
+  "active": true,
+  "spec": "001-url-based-table-filtering-hook",
+  "state": "planning",
+  "subtasks": {
+    "completed": 0,
+    "total": 0,
+    "in_progress": 1,
+    "failed": 0
+  },
+  "phase": {
+    "current": "useUrlFiltering Hook Implementation",
+    "id": null,
+    "total": 2
+  },
+  "workers": {
+    "active": 0,
+    "max": 1
+  },
+  "session": {
+    "number": 2,
+    "started_at": "2026-03-02T02:02:55.738186"
+  },
+  "last_update": "2026-03-02T02:08:00.392408"
+}
