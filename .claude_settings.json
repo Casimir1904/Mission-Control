@@ -1,0 +1,39 @@
+{
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": true
+  },
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Read(./**)",
+      "Write(./**)",
+      "Edit(./**)",
+      "Glob(./**)",
+      "Grep(./**)",
+      "Read(/Users/holgergundlach/Development/Mission-Control/.auto-claude/worktrees/tasks/007-add-breadcrumb-navigation-for-deep-page-hierarchie/**)",
+      "Write(/Users/holgergundlach/Development/Mission-Control/.auto-claude/worktrees/tasks/007-add-breadcrumb-navigation-for-deep-page-hierarchie/**)",
+      "Edit(/Users/holgergundlach/Development/Mission-Control/.auto-claude/worktrees/tasks/007-add-breadcrumb-navigation-for-deep-page-hierarchie/**)",
+      "Glob(/Users/holgergundlach/Development/Mission-Control/.auto-claude/worktrees/tasks/007-add-breadcrumb-navigation-for-deep-page-hierarchie/**)",
+      "Grep(/Users/holgergundlach/Development/Mission-Control/.auto-claude/worktrees/tasks/007-add-breadcrumb-navigation-for-deep-page-hierarchie/**)",
+      "Read(/Users/holgergundlach/Development/Mission-Control/.auto-claude/worktrees/tasks/007-add-breadcrumb-navigation-for-deep-page-hierarchie/.auto-claude/specs/007-add-breadcrumb-navigation-for-deep-page-hierarchie/**)",
+      "Write(/Users/holgergundlach/Development/Mission-Control/.auto-claude/worktrees/tasks/007-add-breadcrumb-navigation-for-deep-page-hierarchie/.auto-claude/specs/007-add-breadcrumb-navigation-for-deep-page-hierarchie/**)",
+      "Edit(/Users/holgergundlach/Development/Mission-Control/.auto-claude/worktrees/tasks/007-add-breadcrumb-navigation-for-deep-page-hierarchie/.auto-claude/specs/007-add-breadcrumb-navigation-for-deep-page-hierarchie/**)",
+      "Read(/Users/holgergundlach/Development/Mission-Control/.auto-claude/**)",
+      "Write(/Users/holgergundlach/Development/Mission-Control/.auto-claude/**)",
+      "Edit(/Users/holgergundlach/Development/Mission-Control/.auto-claude/**)",
+      "Glob(/Users/holgergundlach/Development/Mission-Control/.auto-claude/**)",
+      "Grep(/Users/holgergundlach/Development/Mission-Control/.auto-claude/**)",
+      "Bash(*)",
+      "WebFetch(*)",
+      "WebSearch(*)",
+      "mcp__context7__resolve-library-id(*)",
+      "mcp__context7__get-library-docs(*)",
+      "mcp__graphiti-memory__search_nodes(*)",
+      "mcp__graphiti-memory__search_facts(*)",
+      "mcp__graphiti-memory__add_episode(*)",
+      "mcp__graphiti-memory__get_episodes(*)",
+      "mcp__graphiti-memory__get_entity_edge(*)"
+    ]
+  }
+}
