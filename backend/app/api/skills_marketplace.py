@@ -645,7 +645,7 @@ def _run_git_clone(
     cmd.extend([source_url, str(repo_dir)])
 
     try:
-        result = subprocess.run(
+        subprocess.run(
             cmd,
             check=True,
             capture_output=True,
