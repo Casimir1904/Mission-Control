@@ -55,6 +55,9 @@ class Settings(BaseSettings):
     security_header_referrer_policy: str = ""
     security_header_permissions_policy: str = ""
 
+    # Request payload size limits (0 disables limit)
+    max_payload_size_bytes: int = Field(default=1_048_576, ge=0)  # 1 MB default
+
     # Database lifecycle
     db_auto_migrate: bool = False
 

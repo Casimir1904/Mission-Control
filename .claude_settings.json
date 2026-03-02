@@ -1,0 +1,39 @@
+{
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": true
+  },
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Read(./**)",
+      "Write(./**)",
+      "Edit(./**)",
+      "Glob(./**)",
+      "Grep(./**)",
+      "Read(/Users/holgergundlach/Development/Mission-Control/.auto-claude/worktrees/tasks/015-add-request-payload-size-limits/**)",
+      "Write(/Users/holgergundlach/Development/Mission-Control/.auto-claude/worktrees/tasks/015-add-request-payload-size-limits/**)",
+      "Edit(/Users/holgergundlach/Development/Mission-Control/.auto-claude/worktrees/tasks/015-add-request-payload-size-limits/**)",
+      "Glob(/Users/holgergundlach/Development/Mission-Control/.auto-claude/worktrees/tasks/015-add-request-payload-size-limits/**)",
+      "Grep(/Users/holgergundlach/Development/Mission-Control/.auto-claude/worktrees/tasks/015-add-request-payload-size-limits/**)",
+      "Read(/Users/holgergundlach/Development/Mission-Control/.auto-claude/worktrees/tasks/015-add-request-payload-size-limits/.auto-claude/specs/015-add-request-payload-size-limits/**)",
+      "Write(/Users/holgergundlach/Development/Mission-Control/.auto-claude/worktrees/tasks/015-add-request-payload-size-limits/.auto-claude/specs/015-add-request-payload-size-limits/**)",
+      "Edit(/Users/holgergundlach/Development/Mission-Control/.auto-claude/worktrees/tasks/015-add-request-payload-size-limits/.auto-claude/specs/015-add-request-payload-size-limits/**)",
+      "Read(/Users/holgergundlach/Development/Mission-Control/.auto-claude/**)",
+      "Write(/Users/holgergundlach/Development/Mission-Control/.auto-claude/**)",
+      "Edit(/Users/holgergundlach/Development/Mission-Control/.auto-claude/**)",
+      "Glob(/Users/holgergundlach/Development/Mission-Control/.auto-claude/**)",
+      "Grep(/Users/holgergundlach/Development/Mission-Control/.auto-claude/**)",
+      "Bash(*)",
+      "WebFetch(*)",
+      "WebSearch(*)",
+      "mcp__context7__resolve-library-id(*)",
+      "mcp__context7__get-library-docs(*)",
+      "mcp__graphiti-memory__search_nodes(*)",
+      "mcp__graphiti-memory__search_facts(*)",
+      "mcp__graphiti-memory__add_episode(*)",
+      "mcp__graphiti-memory__get_episodes(*)",
+      "mcp__graphiti-memory__get_entity_edge(*)"
+    ]
+  }
+}
