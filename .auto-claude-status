@@ -1,0 +1,25 @@
+{
+  "active": true,
+  "spec": "002-datatable-export-to-csv-json",
+  "state": "building",
+  "subtasks": {
+    "completed": 1,
+    "total": 4,
+    "in_progress": 1,
+    "failed": 0
+  },
+  "phase": {
+    "current": "DataTable Export Implementation",
+    "id": null,
+    "total": 4
+  },
+  "workers": {
+    "active": 0,
+    "max": 1
+  },
+  "session": {
+    "number": 3,
+    "started_at": "2026-03-02T02:02:55.330589"
+  },
+  "last_update": "2026-03-02T02:40:24.993583"
+}
