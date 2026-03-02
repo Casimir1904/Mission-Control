@@ -1,3 +1,5 @@
+"""Unit tests for RequestSizeLimitMiddleware."""
+
 from __future__ import annotations
 
 import pytest
@@ -9,6 +11,7 @@ from app.core.request_size_limit import RequestSizeLimitMiddleware
 
 @pytest.mark.asyncio
 async def test_request_size_limit_middleware_passes_through_non_http_scope() -> None:
+    """Non-HTTP scopes should pass through without processing."""
     called = False
 
     async def app(scope, receive, send):  # type: ignore[no-untyped-def]
@@ -25,6 +28,7 @@ async def test_request_size_limit_middleware_passes_through_non_http_scope() -> 
 
 @pytest.mark.asyncio
 async def test_request_size_limit_middleware_disables_when_limit_is_zero() -> None:
+    """When max_payload_size_bytes is 0, limit is disabled and all requests pass."""
     called = False
 
     async def app(scope, receive, send):  # type: ignore[no-untyped-def]
@@ -35,7 +39,33 @@ async def test_request_size_limit_middleware_disables_when_limit_is_zero() -> No
 
     middleware = RequestSizeLimitMiddleware(app, max_payload_size_bytes=0)
     await middleware(
-        {"type": "http", "method": "POST", "path": "/", "headers": []},
+        {
+            "type": "http",
+            "method": "POST",
+            "path": "/",
+            "headers": [(b"content-length", b"1000000")],
+        },
+        lambda: None,
+        lambda _: None,
+    )
+
+    assert called is True
+
+
+@pytest.mark.asyncio
+async def test_request_size_limit_middleware_allows_request_without_content_length() -> None:
+    """Requests without Content-Length header should pass through."""
+    called = False
+
+    async def app(scope, receive, send):  # type: ignore[no-untyped-def]
+        _ = receive
+        _ = send
+        nonlocal called
+        called = True
+
+    middleware = RequestSizeLimitMiddleware(app, max_payload_size_bytes=100)
+    await middleware(
+        {"type": "http", "method": "GET", "path": "/", "headers": []},
         lambda: None,
         lambda _: None,
     )
@@ -45,34 +75,33 @@ async def test_request_size_limit_middleware_disables_when_limit_is_zero() -> No
 
 @pytest.mark.asyncio
 async def test_request_size_limit_middleware_allows_request_within_limit() -> None:
-    sent_messages: list[dict[str, object]] = []
+    """Requests with Content-Length within limit should pass to the app."""
+    called = False
 
     async def app(scope, receive, send):  # type: ignore[no-untyped-def]
-        _ = scope
-        message = await receive()
-        assert message["type"] == "http.request"
-        await send({"type": "http.response.start", "status": 200, "headers": []})
-        await send({"type": "http.response.body", "body": b"OK", "more_body": False})
-
-    async def capture(message):  # type: ignore[no-untyped-def]
-        sent_messages.append(message)
-
-    async def receive() -> dict[str, object]:
-        return {"type": "http.request", "body": b"small", "more_body": False}
+        _ = receive
+        _ = send
+        nonlocal called
+        called = True
 
     middleware = RequestSizeLimitMiddleware(app, max_payload_size_bytes=100)
     await middleware(
-        {"type": "http", "method": "POST", "path": "/", "headers": []}, receive, capture
+        {
+            "type": "http",
+            "method": "POST",
+            "path": "/",
+            "headers": [(b"content-length", b"50")],
+        },
+        lambda: None,
+        lambda _: None,
     )
 
-    response_start = next(
-        message for message in sent_messages if message.get("type") == "http.response.start"
-    )
-    assert response_start.get("status") == 200
+    assert called is True
 
 
 @pytest.mark.asyncio
 async def test_request_size_limit_middleware_rejects_request_exceeding_limit() -> None:
+    """Requests with Content-Length exceeding limit should return 413."""
     sent_messages: list[dict[str, object]] = []
 
     async def app(scope, receive, send):  # type: ignore[no-untyped-def]
@@ -84,12 +113,16 @@ async def test_request_size_limit_middleware_rejects_request_exceeding_limit() -
     async def capture(message):  # type: ignore[no-untyped-def]
         sent_messages.append(message)
 
-    async def receive() -> dict[str, object]:
-        return {"type": "http.request", "body": b"this is a large payload", "more_body": False}
-
-    middleware = RequestSizeLimitMiddleware(app, max_payload_size_bytes=10)
+    middleware = RequestSizeLimitMiddleware(app, max_payload_size_bytes=100)
     await middleware(
-        {"type": "http", "method": "POST", "path": "/", "headers": []}, receive, capture
+        {
+            "type": "http",
+            "method": "POST",
+            "path": "/",
+            "headers": [(b"content-length", b"200")],
+        },
+        lambda: None,
+        capture,
     )
 
     response_start = next(
@@ -104,104 +137,66 @@ async def test_request_size_limit_middleware_rejects_request_exceeding_limit() -
 
 
 @pytest.mark.asyncio
-async def test_request_size_limit_middleware_accumulates_multiple_chunks() -> None:
-    sent_messages: list[dict[str, object]] = []
-    chunk_count = 0
-
-    async def app(scope, receive, send):  # type: ignore[no-untyped-def]
-        _ = scope
-        # Consume all messages
-        while True:
-            message = await receive()
-            if not message.get("more_body", False):
-                break
-        await send({"type": "http.response.start", "status": 200, "headers": []})
-        await send({"type": "http.response.body", "body": b"OK", "more_body": False})
-
-    async def capture(message):  # type: ignore[no-untyped-def]
-        sent_messages.append(message)
-
-    async def receive() -> dict[str, object]:
-        nonlocal chunk_count
-        chunk_count += 1
-        if chunk_count == 1:
-            return {"type": "http.request", "body": b"12345", "more_body": True}
-        if chunk_count == 2:
-            return {"type": "http.request", "body": b"67890", "more_body": True}
-        return {"type": "http.request", "body": b"", "more_body": False}
-
-    # Limit is 12, chunks are 5+5=10 (within limit), but we continue and
-    # the middleware tracks cumulative size. Actually let's set limit to 8
-    # so first chunk (5) is OK but total (10) exceeds.
-    middleware = RequestSizeLimitMiddleware(app, max_payload_size_bytes=8)
-    await middleware(
-        {"type": "http", "method": "POST", "path": "/", "headers": []}, receive, capture
-    )
-
-    response_start = next(
-        message for message in sent_messages if message.get("type") == "http.response.start"
-    )
-    assert response_start.get("status") == 413
-
-
-@pytest.mark.asyncio
 async def test_request_size_limit_middleware_exact_boundary() -> None:
+    """Request with Content-Length exactly at limit should pass."""
+    called = False
+
+    async def app(scope, receive, send):  # type: ignore[no-untyped-def]
+        _ = receive
+        _ = send
+        nonlocal called
+        called = True
+
+    middleware = RequestSizeLimitMiddleware(app, max_payload_size_bytes=100)
+    await middleware(
+        {
+            "type": "http",
+            "method": "POST",
+            "path": "/",
+            "headers": [(b"content-length", b"100")],
+        },
+        lambda: None,
+        lambda _: None,
+    )
+
+    # Content-Length exactly at limit should pass
+    assert called is True
+
+
+@pytest.mark.asyncio
+async def test_request_size_limit_middleware_one_byte_over_limit() -> None:
+    """Request with Content-Length one byte over limit should be rejected."""
     sent_messages: list[dict[str, object]] = []
 
     async def app(scope, receive, send):  # type: ignore[no-untyped-def]
         _ = scope
-        await receive()
         await send({"type": "http.response.start", "status": 200, "headers": []})
         await send({"type": "http.response.body", "body": b"OK", "more_body": False})
 
     async def capture(message):  # type: ignore[no-untyped-def]
         sent_messages.append(message)
 
-    async def receive() -> dict[str, object]:
-        return {"type": "http.request", "body": b"exactly10!!", "more_body": False}
-
-    # Body is exactly 11 bytes, limit is 10
-    middleware = RequestSizeLimitMiddleware(app, max_payload_size_bytes=10)
+    middleware = RequestSizeLimitMiddleware(app, max_payload_size_bytes=100)
     await middleware(
-        {"type": "http", "method": "POST", "path": "/", "headers": []}, receive, capture
+        {
+            "type": "http",
+            "method": "POST",
+            "path": "/",
+            "headers": [(b"content-length", b"101")],
+        },
+        lambda: None,
+        capture,
     )
 
     response_start = next(
         message for message in sent_messages if message.get("type") == "http.response.start"
     )
     assert response_start.get("status") == 413
-
-
-@pytest.mark.asyncio
-async def test_request_size_limit_middleware_allows_exact_limit() -> None:
-    sent_messages: list[dict[str, object]] = []
-
-    async def app(scope, receive, send):  # type: ignore[no-untyped-def]
-        _ = scope
-        await receive()
-        await send({"type": "http.response.start", "status": 200, "headers": []})
-        await send({"type": "http.response.body", "body": b"OK", "more_body": False})
-
-    async def capture(message):  # type: ignore[no-untyped-def]
-        sent_messages.append(message)
-
-    async def receive() -> dict[str, object]:
-        return {"type": "http.request", "body": b"exactly10!!", "more_body": False}
-
-    # Body is exactly 11 bytes, limit is 11 - should be allowed
-    middleware = RequestSizeLimitMiddleware(app, max_payload_size_bytes=11)
-    await middleware(
-        {"type": "http", "method": "POST", "path": "/", "headers": []}, receive, capture
-    )
-
-    response_start = next(
-        message for message in sent_messages if message.get("type") == "http.response.start"
-    )
-    assert response_start.get("status") == 200
 
 
 @pytest.mark.asyncio
 async def test_request_size_limit_middleware_negative_limit_treated_as_zero() -> None:
+    """Negative max_payload_size_bytes should be treated as 0 (disabled)."""
     called = False
 
     async def app(scope, receive, send):  # type: ignore[no-untyped-def]
@@ -213,7 +208,12 @@ async def test_request_size_limit_middleware_negative_limit_treated_as_zero() ->
     # Negative values should be clamped to 0 (disabled)
     middleware = RequestSizeLimitMiddleware(app, max_payload_size_bytes=-100)
     await middleware(
-        {"type": "http", "method": "POST", "path": "/", "headers": []},
+        {
+            "type": "http",
+            "method": "POST",
+            "path": "/",
+            "headers": [(b"content-length", b"1000000")],
+        },
         lambda: None,
         lambda _: None,
     )
@@ -221,7 +221,65 @@ async def test_request_size_limit_middleware_negative_limit_treated_as_zero() ->
     assert called is True
 
 
+@pytest.mark.asyncio
+async def test_request_size_limit_middleware_invalid_content_length() -> None:
+    """Invalid Content-Length values should pass through to the app."""
+    called = False
+
+    async def app(scope, receive, send):  # type: ignore[no-untyped-def]
+        _ = receive
+        _ = send
+        nonlocal called
+        called = True
+
+    middleware = RequestSizeLimitMiddleware(app, max_payload_size_bytes=100)
+    # Invalid Content-Length value
+    await middleware(
+        {
+            "type": "http",
+            "method": "POST",
+            "path": "/",
+            "headers": [(b"content-length", b"not-a-number")],
+        },
+        lambda: None,
+        lambda _: None,
+    )
+
+    assert called is True
+
+
+@pytest.mark.asyncio
+async def test_request_size_limit_middleware_case_insensitive_header() -> None:
+    """Content-Length header matching should be case-insensitive."""
+    called = False
+
+    async def app(scope, receive, send):  # type: ignore[no-untyped-def]
+        _ = receive
+        _ = send
+        nonlocal called
+        called = True
+
+    middleware = RequestSizeLimitMiddleware(app, max_payload_size_bytes=100)
+    # Uppercase header name
+    await middleware(
+        {
+            "type": "http",
+            "method": "POST",
+            "path": "/",
+            "headers": [(b"Content-Length", b"50")],
+        },
+        lambda: None,
+        lambda _: None,
+    )
+
+    assert called is True
+
+
+# FastAPI integration tests
+
+
 def test_request_size_limit_middleware_integration_allows_small_request() -> None:
+    """Integration test: small POST request should succeed."""
     app = FastAPI()
     app.add_middleware(RequestSizeLimitMiddleware, max_payload_size_bytes=1024)
 
@@ -236,6 +294,7 @@ def test_request_size_limit_middleware_integration_allows_small_request() -> Non
 
 
 def test_request_size_limit_middleware_integration_rejects_large_request() -> None:
+    """Integration test: large POST request should be rejected with 413."""
     app = FastAPI()
     app.add_middleware(RequestSizeLimitMiddleware, max_payload_size_bytes=10)
 
@@ -250,6 +309,7 @@ def test_request_size_limit_middleware_integration_rejects_large_request() -> No
 
 
 def test_request_size_limit_middleware_integration_empty_body() -> None:
+    """Integration test: GET request without body should succeed."""
     app = FastAPI()
     app.add_middleware(RequestSizeLimitMiddleware, max_payload_size_bytes=100)
 
