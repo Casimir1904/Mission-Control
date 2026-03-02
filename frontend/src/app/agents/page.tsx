@@ -12,6 +12,7 @@ import { AgentsTable } from "@/components/agents/AgentsTable";
 import { DashboardPageLayout } from "@/components/templates/DashboardPageLayout";
 import { Button } from "@/components/ui/button";
 import { ConfirmActionDialog } from "@/components/ui/confirm-action-dialog";
+import { Pagination } from "@/components/ui/pagination";
 
 import { ApiError } from "@/api/mutator";
 import {
@@ -30,6 +31,8 @@ import { createOptimisticListDeleteMutation } from "@/lib/list-delete";
 import { useOrganizationMembership } from "@/lib/use-organization-membership";
 import { useUrlSorting } from "@/lib/use-url-sorting";
 
+const ITEMS_PER_PAGE = 10;
+
 const AGENT_SORTABLE_COLUMNS = [
   "name",
   "status",
@@ -40,6 +43,7 @@ const AGENT_SORTABLE_COLUMNS = [
 ];
 
 export default function AgentsPage() {
+  const [currentPage, setCurrentPage] = useState(1);
   const { isSignedIn } = useAuth();
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -93,6 +97,15 @@ export default function AgentsPage() {
     [agentsQuery.data],
   );
 
+  // Pagination logic
+  const totalItems = agents.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));
+  const paginatedAgents = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    const end = start + ITEMS_PER_PAGE;
+    return agents.slice(start, end);
+  }, [agents, currentPage]);
+
   const deleteMutation = useDeleteAgentApiV1AgentsAgentIdDelete<
     ApiError,
     { previous?: listAgentsApiV1AgentsGetResponse }
@@ -144,7 +157,7 @@ export default function AgentsPage() {
       >
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <AgentsTable
-            agents={agents}
+            agents={paginatedAgents}
             boards={boards}
             isLoading={agentsQuery.isLoading}
             sorting={sorting}
@@ -161,6 +174,18 @@ export default function AgentsPage() {
             }}
           />
         </div>
+
+        {agents.length > 0 && (
+          <div className="mt-4">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              itemsPerPage={ITEMS_PER_PAGE}
+              onPageChange={setCurrentPage}
+            />
+          </div>
+        )}
 
         {agentsQuery.error ? (
           <p className="mt-4 text-sm text-red-500">
