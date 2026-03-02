@@ -2304,6 +2304,7 @@ async def _apply_lead_task_update(
     )
     await session.commit()
     await session.refresh(update.task)
+    await _maybe_enqueue_next_recurrence(session, update=update)
     await _lead_notify_new_assignee(session, update=update)
     return await _task_read_response(
         session,
