@@ -17,3 +17,4 @@ Cypress.on("uncaught:exception", (err) => {
 addClerkCommands({ Cypress, cy });
 
 import "./commands";
+import "./axe-commands";
