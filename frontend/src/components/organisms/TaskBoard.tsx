@@ -734,12 +734,15 @@ export const TaskBoard = memo(function TaskBoard({
           keyboardNav.isMoveModeActive &&
           keyboardNav.targetColumn === column.status;
 
+        const hasActiveDrag = draggingId !== null || keyboardNav.isMoveModeActive;
+
         return (
           <div
             key={column.title}
-            role="list"
+            role="region"
             aria-label={`${column.title} column`}
             aria-current={isTargetColumn ? "true" : undefined}
+            aria-dropeffect={hasActiveDrag && !readOnly ? "move" : undefined}
             className={cn(
               // On mobile, columns are stacked, so avoid forcing tall fixed heights.
               "kanban-column min-h-0",
@@ -813,7 +816,7 @@ export const TaskBoard = memo(function TaskBoard({
               ) : null}
             </div>
             <div className="rounded-b-xl border border-t-0 border-slate-200 bg-white p-3">
-              <div className="space-y-3">
+              <div className="space-y-3" role="list">
                 {filteredTasks.map((task) => {
                   const dueState = resolveDueState(task);
                   const isFocused = keyboardNav.focusedTaskId === task.id;

@@ -82,6 +82,8 @@ export function TaskCard({
     ? keyboardTargetColumn.replace(/_/g, " ")
     : "";
 
+  const isGrabbed = isDragging || isKeyboardMoving;
+
   return (
     <div
       className={cn(
@@ -103,8 +105,9 @@ export function TaskCard({
       onDragEnd={onDragEnd}
       onClick={onClick}
       onFocus={onFocus}
-      role="button"
+      role="listitem"
       tabIndex={0}
+      aria-grabbed={isGrabbed}
       aria-label={
         isKeyboardMoving
           ? `Moving to ${columnLabel}. Press Enter to confirm or Escape to cancel.`
