@@ -134,11 +134,10 @@ describe("useMutationWithToast", () => {
 
     expect(mockSuccess).toHaveBeenCalledTimes(1);
     expect(onSuccess).toHaveBeenCalledTimes(1);
-    expect(onSuccess).toHaveBeenCalledWith(
-      { id: "1" },
-      { name: "Test" },
-      undefined
-    );
+    // Verify onSuccess was called with correct data and variables (3rd and 4th args are context and mutation)
+    const onSuccessCalls = onSuccess.mock.calls[0];
+    expect(onSuccessCalls[0]).toEqual({ id: "1" });
+    expect(onSuccessCalls[1]).toEqual({ name: "Test" });
   });
 
   it("calls original onError callback after showing toast", async () => {
@@ -162,7 +161,10 @@ describe("useMutationWithToast", () => {
 
     expect(mockError).toHaveBeenCalledTimes(1);
     expect(onError).toHaveBeenCalledTimes(1);
-    expect(onError).toHaveBeenCalledWith(error, { input: "data" }, undefined);
+    // Verify onError was called with correct error and variables (3rd and 4th args are context and mutation)
+    const onErrorCalls = onError.mock.calls[0];
+    expect(onErrorCalls[0]).toEqual(error);
+    expect(onErrorCalls[1]).toEqual({ input: "data" });
   });
 
   it("does not show success toast when successMessage is not provided", async () => {

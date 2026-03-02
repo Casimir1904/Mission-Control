@@ -86,21 +86,21 @@ export function useMutationWithToast<
 
   return useMutation<TData, TError, TVariables, TContext>({
     ...mutationOptions,
-    onSuccess: (data, variables, context) => {
+    onSuccess: (data, variables, context, ...rest) => {
       // Show success toast if message is provided
       if (successMessage) {
         success(successMessage, { description: successDescription });
       }
       // Call the original onSuccess callback if provided
-      onSuccess?.(data, variables, context);
+      onSuccess?.(data, variables, context, ...rest);
     },
-    onError: (error, variables, context) => {
+    onError: (error, variables, context, ...rest) => {
       // Show error toast if message is provided
       if (errorMessage) {
         showError(errorMessage, { description: errorDescription });
       }
       // Call the original onError callback if provided
-      onError?.(error, variables, context);
+      onError?.(error, variables, context, ...rest);
     },
   });
 }

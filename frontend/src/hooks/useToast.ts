@@ -111,12 +111,15 @@ export function useToast(): UseToastReturn {
       },
       options?: ToastOptions
     ): Promise<T> => {
-      return toast.promise(promiseInstance, {
+      // Sonner's toast.promise returns a toast ID, not the promise result
+      // We call toast.promise for the side effect and return the original promise
+      toast.promise(promiseInstance, {
         loading: messages.loading,
         success: messages.success,
         error: messages.error,
         ...options,
       });
+      return promiseInstance;
     },
     []
   );

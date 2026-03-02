@@ -1,22 +1,25 @@
 import { describe, expect, it, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
-import { toast } from "sonner";
 
 import { useToast } from "./useToast";
 
-// Mock sonner toast
-vi.mock("sonner", () => ({
-  toast: {
-    default: vi.fn(() => "toast-id-1"),
-    success: vi.fn(() => "toast-id-success"),
-    error: vi.fn(() => "toast-id-error"),
-    info: vi.fn(() => "toast-id-info"),
-    warning: vi.fn(() => "toast-id-warning"),
-    loading: vi.fn(() => "toast-id-loading"),
-    dismiss: vi.fn(),
-    promise: vi.fn((promise) => promise),
-  },
-}));
+// Mock sonner toast - toast is the default export (callable) with methods attached
+vi.mock("sonner", () => {
+  const mockToastFn = vi.fn(() => "toast-id-1");
+  return {
+    toast: Object.assign(mockToastFn, {
+      success: vi.fn(() => "toast-id-success"),
+      error: vi.fn(() => "toast-id-error"),
+      info: vi.fn(() => "toast-id-info"),
+      warning: vi.fn(() => "toast-id-warning"),
+      loading: vi.fn(() => "toast-id-loading"),
+      dismiss: vi.fn(),
+      promise: vi.fn((promise: Promise<unknown>) => promise),
+    }),
+  };
+});
+
+import { toast } from "sonner";
 
 describe("useToast", () => {
   it("returns toast methods", () => {
@@ -37,7 +40,7 @@ describe("useToast", () => {
       const { result } = renderHook(() => useToast());
       const id = result.current.toast("Hello World");
 
-      expect(toast.default).toHaveBeenCalledWith("Hello World", {
+      expect(toast).toHaveBeenCalledWith("Hello World", {
         description: undefined,
         duration: undefined,
         id: undefined,
@@ -53,7 +56,7 @@ describe("useToast", () => {
         id: "custom-id",
       });
 
-      expect(toast.default).toHaveBeenCalledWith("Hello World", {
+      expect(toast).toHaveBeenCalledWith("Hello World", {
         description: "This is a description",
         duration: 5000,
         id: "custom-id",
