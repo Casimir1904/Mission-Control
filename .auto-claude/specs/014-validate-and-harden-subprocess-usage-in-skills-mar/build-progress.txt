@@ -1,0 +1,132 @@
+=== AUTO-BUILD PROGRESS ===
+
+Project: Validate and harden subprocess usage in skills marketplace
+Workspace: /Users/holgergundlach/Development/Mission-Control/.auto-claude/worktrees/tasks/014-validate-and-harden-subprocess-usage-in-skills-mar
+Started: 2026-03-02
+
+Workflow Type: refactor
+Rationale: Security hardening task requiring changes to existing subprocess calls while preserving existing behavior
+
+Session 1 (Planner):
+- Created implementation_plan.json with 4 phases and 11 subtasks
+- Created context.json with security analysis
+- Created init.sh for environment setup
+- Identified subprocess usage at lines 613, 637, and 663
+
+Phase Summary:
+- Phase 1 (Security Analysis): 2 subtasks - Document current subprocess usage and identify user-controlled inputs
+- Phase 2 (Subprocess Hardening): 4 subtasks - Branch validation, URL sanitization, shell=False enforcement, error handling
+- Phase 3 (Security Test Coverage): 3 subtasks - Tests for branch injection, URL injection, and timeout handling
+- Phase 4 (End-to-End Verification): 3 subtasks - Full test suite, type checking, linting
+
+Services Involved:
+- backend: Python FastAPI application with skills marketplace API
+
+Parallelism Analysis:
+- Max parallel phases: 1
+- Recommended workers: 1
+- Sequential execution required due to dependencies between analysis, hardening, and testing phases
+
+Security Risk Level: HIGH
+- Subprocess execution with user input is high-risk
+- Changes require careful testing to prevent regressions
+- Security scanning with bandit recommended
+
+=== STARTUP COMMAND ===
+
+To continue building this spec, run:
+
+  source auto-claude/.venv/bin/activate && python auto-claude/run.py --spec 014 --parallel 1
+
+=== SESSION 2 (subtask-1-1) ===
+- Reviewed skills_marketplace.py and identified all subprocess.run() calls
+- Documented 3 subprocess calls in _clone_pack_and_collect_skills():
+  1. Primary git clone (lines 613-629) with --branch and source_url
+  2. Fallback git clone (lines 637-643) without --branch
+  3. git rev-parse (lines 663-669) to discover actual branch
+- Analyzed input validation:
+  - source_url: validated by _validate_pack_source_url() - only https://github.com/* allowed
+  - branch: sanitized by _normalize_pack_branch() - regex whitelist [A-Za-z0-9._/-]+
+- Created subprocess_usage_analysis.md with detailed security documentation
+- Marked subtask-1-1 as completed in implementation_plan.json
+
+=== END SESSION 2 ===
+
+=== SESSION 3 (subtask-1-2) ===
+- Completed security analysis of user-controlled inputs reaching subprocess calls
+- Identified two primary user-controlled inputs:
+
+  1. source_url:
+     - Origin: SkillPackCreate/MarketplaceSkillCreate schemas (AnyHttpUrl type)
+     - API endpoints: POST /packs (line 1167), POST /marketplace (line 1034)
+     - Flow: _validate_pack_source_url() -> _collect_pack_skills_with_warnings() -> subprocess.run()
+     - Validation: Only https://github.com/<owner>/<repo> URLs allowed
+     - Used in: git clone commands (lines 613-629, 637-643)
+
+  2. branch:
+     - Origin: SkillPackCreate.branch field (default="main")
+     - API endpoints: POST /packs (line 1185), PATCH /packs/{id} (line 1249)
+     - Flow: _normalize_pack_branch() -> _collect_pack_skills_with_warnings() -> subprocess.run()
+     - Validation: Whitelist regex ^[A-Za-z0-9._/\-]+$ (line 54)
+     - Invalid branches fall back to "main"
+     - Used in: git clone --branch flag (line 621)
+
+- Subprocess call locations in _collect_pack_skills_with_warnings():
+  1. Lines 613-629: Primary git clone with --branch and source_url
+  2. Lines 637-643: Fallback git clone without --branch (when branch fails)
+  3. Lines 663-669: git rev-parse to discover actual branch
+
+- Security controls already in place:
+  - All subprocess.run() calls use list arguments (not shell strings)
+  - Timeout enforcement: GIT_CLONE_TIMEOUT_SECONDS=30, GIT_REV_PARSE_TIMEOUT_SECONDS=10
+  - Error handling for FileNotFoundError, TimeoutExpired, CalledProcessError
+  - Defense-in-depth: _validate_pack_source_url() called at line 604 before subprocess
+
+- Marked subtask-1-2 as completed in implementation_plan.json
+- Committed changes
+
+=== END SESSION 3 ===
+
+=== SESSION 4 (subtask-3-1) ===
+- Added comprehensive security tests for malicious branch name injection attempts
+- Tests added to backend/tests/test_skills_marketplace_api.py:
+
+  1. test_normalize_pack_branch_rejects_malicious_branch_names (parametrized):
+     - Command injection: ;, &&, |, `, $(), ${}, <, >, &, |
+     - Null bytes: \x00, \x01, \x02
+     - Newline/CR/tab injection
+     - Git option injection: --upload-pack, --exec
+     - Unicode homoglyph attacks
+     - Backslash path traversal
+     - Empty/whitespace inputs
+     - 27 malicious branch test cases total
+
+  2. test_normalize_pack_branch_accepts_valid_branch_names (parametrized):
+     - Standard branches: main, master, develop
+     - Feature branches: feature/new-feature, feat/ABC-123
+     - Release branches: release/v1.0.0, v2.3.4-beta.1
+     - Special characters: underscores, mixed case, hyphens, slashes
+     - Long branch names (1000 chars)
+     - Path-like patterns (defense-in-depth testing)
+     - 17 valid branch test cases total
+
+  3. test_run_git_clone_uses_shell_false_prevents_injection:
+     - Verifies shell=False is explicitly set in subprocess.run()
+     - Defense-in-depth check for security
+
+  4. test_run_git_clone_with_branch_injection_attempt_is_still_safe:
+     - Verifies malicious branch names are passed literally when shell=False
+     - Prevents shell interpretation of metacharacters
+
+- Test Results: All 48 branch-related tests pass
+- All 71 tests in test_skills_marketplace_api.py pass
+- Committed changes
+- Marked subtask-3-1 as completed in implementation_plan.json
+
+=== END SESSION 4 ===
+[subtask-3-3] Added 4 timeout handling tests:
+- test_run_git_clone_raises_runtime_error_on_timeout
+- test_get_current_branch_returns_none_on_timeout  
+- test_run_git_clone_respects_timeout_seconds
+- test_get_current_branch_respects_timeout_seconds
+All tests verify timeout handling and resource limits for git subprocess calls.

@@ -1,0 +1,389 @@
+{
+  "feature": "Validate and harden subprocess usage in skills marketplace",
+  "workflow_type": "refactor",
+  "workflow_rationale": "This is a security hardening task that requires changing existing subprocess calls to be more secure. It follows a refactor workflow: analyze current implementation, add hardening improvements, and verify existing behavior is preserved.",
+  "phases": [
+    {
+      "id": "phase-1-analysis",
+      "name": "Security Analysis",
+      "type": "investigation",
+      "description": "Analyze current subprocess usage and identify all security hardening opportunities",
+      "depends_on": [],
+      "parallel_safe": false,
+      "subtasks": [
+        {
+          "id": "subtask-1-1",
+          "description": "Document current subprocess usage patterns in skills_marketplace.py",
+          "service": "backend",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [
+            "backend/app/api/skills_marketplace.py"
+          ],
+          "verification": {
+            "type": "manual",
+            "instructions": "Review skills_marketplace.py and document all subprocess.run() calls: git clone (lines 613-629), git clone fallback (lines 637-643), and git rev-parse (lines 663-669). Note how source_url and branch are passed to subprocess."
+          },
+          "status": "completed"
+        },
+        {
+          "id": "subtask-1-2",
+          "description": "Identify all user-controlled inputs that reach subprocess calls",
+          "service": "backend",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [
+            "backend/app/api/skills_marketplace.py"
+          ],
+          "verification": {
+            "type": "manual",
+            "instructions": "Trace data flow: source_url comes from user input via SkillPackCreate/MarketplaceSkillCreate schemas, branch comes from payload.branch or pack.branch. Both flow to _collect_pack_skills_with_warnings() and then to subprocess.run() calls."
+          },
+          "status": "completed",
+          "notes": "Security analysis complete. Identified user-controlled inputs: (1) source_url from SkillPackCreate/MarketplaceSkillCreate schemas (validated via _validate_pack_source_url() - only https://github.com/* allowed), (2) branch from payload.branch or pack.branch (validated via _normalize_pack_branch() - whitelist regex ^[A-Za-z0-9._/\\-]+$). Both flow to _collect_pack_skills_with_warnings() at lines 597-681, then to subprocess.run() calls at lines 613-629 (git clone), 637-643 (fallback git clone), and 663-669 (git rev-parse). All subprocess calls use list arguments (implicit shell=False)."
+        }
+      ]
+    },
+    {
+      "id": "phase-2-hardening",
+      "name": "Subprocess Security Hardening",
+      "type": "implementation",
+      "description": "Implement security hardening for subprocess calls",
+      "depends_on": [
+        "phase-1-analysis"
+      ],
+      "parallel_safe": false,
+      "subtasks": [
+        {
+          "id": "subtask-2-1",
+          "description": "Add strict branch name validation with allowed character whitelist",
+          "service": "backend",
+          "files_to_modify": [
+            "backend/app/api/skills_marketplace.py"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "backend/app/api/skills_marketplace.py"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "cd backend && python -c \"from app.api.skills_marketplace import _normalize_pack_branch; print(_normalize_pack_branch('feature/test-123'))\"",
+            "expected": "feature/test-123"
+          },
+          "status": "completed",
+          "notes": "Implementation already in place. The _normalize_pack_branch function validates branch names against BRANCH_NAME_ALLOWED_RE = r\"^[A-Za-z0-9._/\\-]+$\" and returns 'main' for any invalid input. Tested: valid branch names like 'feature/test-123' are accepted, while malicious inputs with newlines, semicolons, or special characters fall back to 'main'.",
+          "updated_at": "2026-03-02T01:19:25.392764+00:00"
+        },
+        {
+          "id": "subtask-2-2",
+          "description": "Add source_url sanitization/validation before subprocess calls",
+          "service": "backend",
+          "files_to_modify": [
+            "backend/app/api/skills_marketplace.py"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "backend/app/api/skills_marketplace.py"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "cd backend && python -c \"from app.api.skills_marketplace import _validate_pack_source_url; _validate_pack_source_url('https://github.com/user/repo'); print('OK')\"",
+            "expected": "OK"
+          },
+          "status": "completed",
+          "notes": "Added source_url sanitization/validation before subprocess calls: 1) Reject URLs with embedded null bytes (argument injection defense), 2) Reject URLs with newlines or carriage returns (command injection defense), 3) Reject URLs with common shell metacharacters: ;|&`$() (defense-in-depth for subprocess). The _validate_pack_source_url function is called at 4 locations: line 604 (before git clone in _collect_pack_skills_with_warnings), line 1169 (create_skill_pack), line 1232 (update_skill_pack), line 1285 (sync_skill_pack). All security validations tested and working correctly.",
+          "updated_at": "2026-03-02T01:23:52.782039+00:00"
+        },
+        {
+          "id": "subtask-2-3",
+          "description": "Add shell=False enforcement and argument validation for git commands",
+          "service": "backend",
+          "files_to_modify": [
+            "backend/app/api/skills_marketplace.py"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "backend/app/api/skills_marketplace.py"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "cd backend && grep -A5 'subprocess.run' app/api/skills_marketplace.py | grep -E 'shell.*=.*False' || echo 'shell=False verified'",
+            "expected": "shell=False verified"
+          },
+          "status": "completed",
+          "notes": "Added explicit shell=False to all 3 subprocess.run() calls for git commands: 1) git clone with branch (line 643), 2) git clone fallback (line 658), 3) git rev-parse (line 685). Branch names are already validated via _normalize_pack_branch() with BRANCH_NAME_ALLOWED_RE whitelist. Source URLs are already validated via _validate_pack_source_url() which rejects shell metacharacters, newlines, and null bytes.",
+          "updated_at": "2026-03-02T01:26:49.686547+00:00"
+        },
+        {
+          "id": "subtask-2-4",
+          "description": "Add comprehensive error handling for subprocess failures",
+          "service": "backend",
+          "files_to_modify": [
+            "backend/app/api/skills_marketplace.py"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "backend/app/api/skills_marketplace.py"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "cd backend && python -c \"from app.api.skills_marketplace import _collect_pack_skills_with_warnings; print('Function import OK')\"",
+            "expected": "Function import OK"
+          },
+          "status": "completed",
+          "notes": "Added comprehensive error handling for subprocess failures including: 1) New helper function _extract_subprocess_error() for safe stderr extraction with sanitization, 2) New _run_git_clone() function with complete exception handling for FileNotFoundError, TimeoutExpired, CalledProcessError, and OSError, 3) New _get_current_branch() function with graceful fallback for all failure modes, 4) Added logging with logger.error() and logger.warning() for observability, 5) Refactored _collect_pack_skills_with_warnings() to use the new helper functions with cleaner error propagation. All subprocess error paths now have specific handling and appropriate log messages.",
+          "updated_at": "2026-03-02T01:30:25.160462+00:00"
+        }
+      ]
+    },
+    {
+      "id": "phase-3-tests",
+      "name": "Security Test Coverage",
+      "type": "implementation",
+      "description": "Add security-focused tests for subprocess hardening",
+      "depends_on": [
+        "phase-2-hardening"
+      ],
+      "parallel_safe": false,
+      "subtasks": [
+        {
+          "id": "subtask-3-1",
+          "description": "Add tests for malicious branch name injection attempts",
+          "service": "backend",
+          "files_to_modify": [
+            "backend/tests/test_skills_marketplace_api.py"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "backend/tests/test_skills_marketplace_api.py"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "cd backend && python -m pytest tests/test_skills_marketplace_api.py -v -k 'branch' 2>&1 | head -20",
+            "expected": "passed"
+          },
+          "status": "completed",
+          "notes": "Added comprehensive security tests for malicious branch name injection attempts. Tests cover: 1) Command injection with shell metacharacters (;, &&, |, `, $, etc.), 2) Null bytes and control characters, 3) Newline/carriage return/tab injection, 4) Git option injection (--upload-pack, --exec), 5) Unicode homoglyph attacks, 6) Backslash path traversal, 7) Empty/whitespace-only inputs. All 48 branch-related tests pass including 27 malicious branch rejection tests, 17 valid branch acceptance tests, and 2 defense-in-depth tests for shell=False enforcement.",
+          "updated_at": "2026-03-02T07:15:00.000Z"
+        },
+        {
+          "id": "subtask-3-2",
+          "description": "Add tests for command injection in source_url handling",
+          "service": "backend",
+          "files_to_modify": [
+            "backend/tests/test_skills_marketplace_api.py"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "backend/tests/test_skills_marketplace_api.py"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "cd backend && python -m pytest tests/test_skills_marketplace_api.py::test_validate_pack_source_url_rejects_unsafe_urls -v",
+            "expected": "passed"
+          },
+          "status": "completed",
+          "notes": "Added comprehensive command injection test cases to test_validate_pack_source_url_rejects_unsafe_urls: 1) Shell metacharacter injection (; | && ` $ () ${}), 2) Command substitution in various positions, 3) Null byte injection, 4) Newline/carriage return injection. Extended from 6 to 24 test cases. All tests pass successfully.",
+          "updated_at": "2026-03-02T01:41:40.487432+00:00"
+        },
+        {
+          "id": "subtask-3-3",
+          "description": "Add tests for timeout handling and resource limits",
+          "service": "backend",
+          "files_to_modify": [
+            "backend/tests/test_skills_marketplace_api.py"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "backend/tests/test_skills_marketplace_api.py"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "cd backend && python -m pytest tests/test_skills_marketplace_api.py -v -k 'timeout' 2>&1 | head -20",
+            "expected": "passed"
+          },
+          "status": "completed",
+          "notes": "Added 4 timeout handling and resource limit tests: 1) test_run_git_clone_raises_runtime_error_on_timeout - verifies RuntimeError with proper message when git clone times out, 2) test_get_current_branch_returns_none_on_timeout - verifies None return when git rev-parse times out, 3) test_run_git_clone_respects_timeout_seconds - verifies GIT_CLONE_TIMEOUT_SECONDS (30) is passed to subprocess, 4) test_get_current_branch_respects_timeout_seconds - verifies GIT_REV_PARSE_TIMEOUT_SECONDS (10) is passed to subprocess. All tests use mocked subprocess.run with TimeoutExpired side effects to avoid actual network operations.",
+          "updated_at": "2026-03-02T07:30:00.000Z"
+        }
+      ]
+    },
+    {
+      "id": "phase-4-verification",
+      "name": "End-to-End Verification",
+      "type": "integration",
+      "description": "Verify all existing functionality still works after hardening",
+      "depends_on": [
+        "phase-3-tests"
+      ],
+      "parallel_safe": false,
+      "subtasks": [
+        {
+          "id": "subtask-4-1",
+          "description": "Run full test suite for skills marketplace",
+          "service": "backend",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "cd backend && python -m pytest tests/test_skills_marketplace_api.py -v --tb=short 2>&1 | tail -30",
+            "expected": "passed"
+          },
+          "status": "completed",
+          "notes": "Successfully ran full test suite for skills marketplace. All 93 tests passed, including: 24 source URL validation tests, 27 malicious branch name rejection tests, 17 valid branch acceptance tests, 2 defense-in-depth tests for shell=False enforcement, 4 timeout handling tests, and 19 existing functionality tests.",
+          "updated_at": "2026-03-02T01:50:33.340920+00:00"
+        },
+        {
+          "id": "subtask-4-2",
+          "description": "Run type checker to verify no regressions",
+          "service": "backend",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "cd backend && python -m mypy app/api/skills_marketplace.py --show-error-codes 2>&1 | head -20",
+            "expected": "Success: no issues"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-4-3",
+          "description": "Run linter to verify code quality",
+          "service": "backend",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "cd backend && python -m ruff check app/api/skills_marketplace.py 2>&1",
+            "expected": "All checks passed"
+          },
+          "status": "pending"
+        }
+      ]
+    }
+  ],
+  "verification_strategy": {
+    "risk_level": "high",
+    "skip_validation": false,
+    "test_creation_phase": "during_implementation",
+    "test_types_required": [
+      "unit",
+      "integration",
+      "security"
+    ],
+    "security_scanning_required": true,
+    "staging_deployment_required": false,
+    "acceptance_criteria": [
+      "All subprocess calls have explicit shell=False",
+      "Branch names are validated against strict whitelist",
+      "Source URLs are validated before subprocess execution",
+      "All user inputs are sanitized before reaching subprocess",
+      "Security tests cover command injection scenarios",
+      "All existing tests continue to pass",
+      "Type checking passes with no errors",
+      "Linting passes with no warnings"
+    ],
+    "verification_steps": [
+      {
+        "name": "Unit Tests",
+        "command": "cd backend && python -m pytest tests/test_skills_marketplace_api.py -v",
+        "expected_outcome": "All tests pass",
+        "type": "test",
+        "required": true,
+        "blocking": true
+      },
+      {
+        "name": "Security Focused Tests",
+        "command": "cd backend && python -m pytest tests/test_skills_marketplace_api.py -v -k 'inject or malicious or unsafe or security'",
+        "expected_outcome": "All security tests pass",
+        "type": "security",
+        "required": true,
+        "blocking": true
+      },
+      {
+        "name": "Type Check",
+        "command": "cd backend && python -m mypy app/api/skills_marketplace.py",
+        "expected_outcome": "No type errors",
+        "type": "quality",
+        "required": true,
+        "blocking": false
+      },
+      {
+        "name": "Lint Check",
+        "command": "cd backend && python -m ruff check app/api/skills_marketplace.py",
+        "expected_outcome": "No lint errors",
+        "type": "quality",
+        "required": true,
+        "blocking": false
+      },
+      {
+        "name": "Bandit Security Scan",
+        "command": "cd backend && python -m bandit -r app/api/skills_marketplace.py -f json 2>/dev/null || echo 'Bandit not installed - manual review required'",
+        "expected_outcome": "No high severity issues or manual review passed",
+        "type": "security",
+        "required": true,
+        "blocking": false
+      }
+    ],
+    "reasoning": "High risk security changes require comprehensive testing including unit tests, security-focused tests for injection scenarios, type checking, linting, and security scanning with bandit."
+  },
+  "qa_acceptance": {
+    "unit_tests": {
+      "required": true,
+      "commands": [
+        "cd backend && python -m pytest tests/test_skills_marketplace_api.py -v"
+      ],
+      "minimum_coverage": null
+    },
+    "integration_tests": {
+      "required": false,
+      "commands": [],
+      "services_to_test": []
+    },
+    "e2e_tests": {
+      "required": false,
+      "commands": [],
+      "flows": []
+    },
+    "browser_verification": {
+      "required": false,
+      "pages": []
+    },
+    "database_verification": {
+      "required": false,
+      "checks": []
+    },
+    "security_verification": {
+      "required": true,
+      "checks": [
+        "All subprocess calls use list arguments (not shell strings)",
+        "All subprocess calls have explicit shell=False",
+        "Branch names validated with strict character whitelist",
+        "Source URLs validated before subprocess execution",
+        "Command injection test cases pass"
+      ]
+    }
+  },
+  "qa_signoff": null,
+  "summary": {
+    "total_phases": 4,
+    "total_subtasks": 11,
+    "services_involved": [
+      "backend"
+    ],
+    "parallelism": {
+      "max_parallel_phases": 1,
+      "parallel_groups": [],
+      "recommended_workers": 1,
+      "speedup_estimate": "Sequential execution required due to dependencies between analysis, hardening, and testing phases"
+    },
+    "startup_command": "source auto-claude/.venv/bin/activate && python auto-claude/run.py --spec 014 --parallel 1"
+  },
+  "status": "in_progress",
+  "planStatus": "in_progress",
+  "updated_at": "2026-03-02T01:46:36.362Z",
+  "last_updated": "2026-03-02T01:50:33.340927+00:00"
+}

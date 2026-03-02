@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ipaddress
 import json
+import logging
 import re
 import subprocess
 from dataclasses import dataclass
@@ -12,6 +13,8 @@ from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Iterator, TextIO
 from urllib.parse import unquote, urlparse
 from uuid import UUID
+
+logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import func, or_
@@ -173,9 +176,23 @@ def _validate_pack_source_url(source_url: str) -> None:
     - allow only https URLs
     - block localhost
     - block literal private/loopback/link-local IPs
+    - block URLs with embedded newlines, carriage returns, or null bytes
+    - block URLs with shell metacharacters
 
     Note: DNS-based private resolution is not checked here.
     """
+    # Reject URLs with embedded null bytes (argument injection defense)
+    if "\x00" in source_url:
+        raise ValueError("Pack source URL contains invalid characters")
+
+    # Reject URLs with newlines or carriage returns (command injection defense)
+    if any(ch in source_url for ch in {"\n", "\r"}):
+        raise ValueError("Pack source URL contains invalid characters")
+
+    # Reject URLs with common shell metacharacters (defense-in-depth for subprocess)
+    dangerous_shell_chars = set(";|&`$()")
+    if any(ch in source_url for ch in dangerous_shell_chars):
+        raise ValueError("Pack source URL contains invalid characters")
 
     parsed = urlparse(source_url)
     scheme = (parsed.scheme or "").lower()
@@ -594,6 +611,97 @@ def _collect_pack_skills(
     )[0]
 
 
+def _extract_subprocess_error(exc: subprocess.CalledProcessError) -> str:
+    """Extract a safe, concise error message from subprocess stderr.
+
+    Sanitizes output to prevent log injection and limits length.
+    """
+    stderr = (exc.stderr or "").strip()
+    if stderr:
+        first_line = stderr.splitlines()[0][:200]
+        return first_line.replace("\n", " ").replace("\r", " ")
+    return "unknown error"
+
+
+def _run_git_clone(
+    source_url: str,
+    repo_dir: Path,
+    branch: str | None = None,
+) -> None:
+    """Execute git clone with comprehensive error handling.
+
+    Raises:
+        RuntimeError: If git is not available, clone times out, or clone fails.
+    """
+    cmd = [
+        "git",
+        "clone",
+        "--depth",
+        "1",
+        "--single-branch",
+    ]
+    if branch:
+        cmd.extend(["--branch", branch])
+    cmd.extend([source_url, str(repo_dir)])
+
+    try:
+        subprocess.run(
+            cmd,
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=GIT_CLONE_TIMEOUT_SECONDS,
+            shell=False,
+        )
+    except FileNotFoundError as exc:
+        logger.error("git binary not found on server")
+        raise RuntimeError("git binary not available on the server") from exc
+    except subprocess.TimeoutExpired as exc:
+        logger.error("git clone timed out after %s seconds", GIT_CLONE_TIMEOUT_SECONDS)
+        raise RuntimeError(
+            f"timed out cloning pack repository after {GIT_CLONE_TIMEOUT_SECONDS}s"
+        ) from exc
+    except subprocess.CalledProcessError as exc:
+        error_detail = _extract_subprocess_error(exc)
+        logger.error("git clone failed: %s", error_detail)
+        raise RuntimeError(f"unable to clone pack repository: {error_detail}") from exc
+    except OSError as exc:
+        logger.error("OS error during git clone: %s", exc)
+        raise RuntimeError(f"system error during clone: {exc}") from exc
+
+
+def _get_current_branch(repo_dir: Path) -> str | None:
+    """Get the current git branch with comprehensive error handling.
+
+    Returns None if branch detection fails.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(repo_dir), "rev-parse", "--abbrev-ref", "HEAD"],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=GIT_REV_PARSE_TIMEOUT_SECONDS,
+            shell=False,
+        )
+        return result.stdout.strip()
+    except FileNotFoundError:
+        logger.warning("git binary not found during branch detection")
+        return None
+    except subprocess.TimeoutExpired:
+        logger.warning(
+            "git rev-parse timed out after %s seconds", GIT_REV_PARSE_TIMEOUT_SECONDS
+        )
+        return None
+    except subprocess.CalledProcessError as exc:
+        error_detail = _extract_subprocess_error(exc)
+        logger.warning("git rev-parse failed: %s", error_detail)
+        return None
+    except OSError as exc:
+        logger.warning("OS error during branch detection: %s", exc)
+        return None
+
+
 def _collect_pack_skills_with_warnings(
     *,
     source_url: str,
@@ -609,66 +717,31 @@ def _collect_pack_skills_with_warnings(
     with TemporaryDirectory(prefix="skill-pack-sync-") as tmp_dir:
         repo_dir = Path(tmp_dir)
         used_branch = requested_branch
-        try:
-            subprocess.run(
-                [
-                    "git",
-                    "clone",
-                    "--depth",
-                    "1",
-                    "--single-branch",
-                    "--branch",
-                    requested_branch,
-                    source_url,
-                    str(repo_dir),
-                ],
-                check=True,
-                capture_output=True,
-                text=True,
-                timeout=GIT_CLONE_TIMEOUT_SECONDS,
-            )
-        except FileNotFoundError as exc:
-            raise RuntimeError("git binary not available on the server") from exc
-        except subprocess.TimeoutExpired as exc:
-            raise RuntimeError("timed out cloning pack repository") from exc
-        except subprocess.CalledProcessError as exc:
-            if requested_branch != "main":
-                try:
-                    subprocess.run(
-                        ["git", "clone", "--depth", "1", source_url, str(repo_dir)],
-                        check=True,
-                        capture_output=True,
-                        text=True,
-                        timeout=GIT_CLONE_TIMEOUT_SECONDS,
-                    )
-                    used_branch = "main"
-                except (
-                    FileNotFoundError,
-                    subprocess.TimeoutExpired,
-                    subprocess.CalledProcessError,
-                ):
-                    stderr = (exc.stderr or "").strip()
-                    detail = "unable to clone pack repository"
-                    if stderr:
-                        detail = f"{detail}: {stderr.splitlines()[0][:200]}"
-                    raise RuntimeError(detail) from exc
-            else:
-                stderr = (exc.stderr or "").strip()
-                detail = "unable to clone pack repository"
-                if stderr:
-                    detail = f"{detail}: {stderr.splitlines()[0][:200]}"
-                raise RuntimeError(detail) from exc
 
+        # Attempt 1: Clone with requested branch
         try:
-            discovered_branch = subprocess.run(
-                ["git", "-C", str(repo_dir), "rev-parse", "--abbrev-ref", "HEAD"],
-                check=True,
-                capture_output=True,
-                text=True,
-                timeout=GIT_REV_PARSE_TIMEOUT_SECONDS,
-            ).stdout.strip()
-        except (FileNotFoundError, subprocess.TimeoutExpired, subprocess.CalledProcessError):
-            discovered_branch = used_branch or "main"
+            _run_git_clone(source_url, repo_dir, branch=requested_branch)
+        except RuntimeError as clone_exc:
+            # Attempt 2: Fallback to default branch if requested branch differs from main
+            if requested_branch != "main":
+                logger.info("retrying clone with default branch 'main'")
+                try:
+                    _run_git_clone(source_url, repo_dir, branch=None)
+                    used_branch = "main"
+                except RuntimeError as fallback_exc:
+                    logger.error("fallback clone failed: %s", fallback_exc)
+                    raise clone_exc from fallback_exc
+            else:
+                raise
+
+        # Attempt to detect actual branch from cloned repo
+        discovered_branch = _get_current_branch(repo_dir)
+        if discovered_branch is None:
+            logger.warning(
+                "could not detect branch, using fallback: %s",
+                used_branch,
+            )
+            discovered_branch = used_branch
 
         return (
             _collect_pack_skills_from_repo(
