@@ -90,9 +90,10 @@ export function TaskCard({
         hasPendingApproval && "border-amber-200 bg-amber-50/40",
         isBlocked && "border-rose-200 bg-rose-50/50",
         needsLeadReview && "border-indigo-200 bg-indigo-50/30",
-        // Keyboard focus styles
+        // Keyboard focus styles - matches button focus pattern
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)] focus-visible:ring-offset-2",
         isKeyboardFocused &&
-          "ring-2 ring-slate-400 ring-offset-1 focus:outline-none",
+          "ring-2 ring-[color:var(--accent)] ring-offset-2",
         // Keyboard move mode styles
         isKeyboardMoving &&
           "ring-2 ring-indigo-500 ring-offset-2 bg-indigo-50/50 border-indigo-300",
