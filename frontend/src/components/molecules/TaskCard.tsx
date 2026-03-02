@@ -105,7 +105,7 @@ export function TaskCard({
       onDragEnd={onDragEnd}
       onClick={onClick}
       onFocus={onFocus}
-      role="listitem"
+      role="button"
       tabIndex={0}
       aria-grabbed={isGrabbed}
       aria-label={

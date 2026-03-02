@@ -157,6 +157,12 @@ export const TaskBoard = memo(function TaskBoard({
   });
   const keyboardNavRef = useRef<HTMLDivElement | null>(null);
 
+  // Screen reader announcement state
+  const [announcement, setAnnouncement] = useState<string | undefined>(
+    undefined,
+  );
+  const announcementTimeoutRef = useRef<number | null>(null);
+
   const setCardRef = useCallback(
     (taskId: string) => (node: HTMLDivElement | null) => {
       if (node) {
@@ -302,6 +308,15 @@ export const TaskBoard = memo(function TaskBoard({
     };
   }, [draggingId, measurePositions, tasks]);
 
+  // Cleanup announcement timeout on unmount
+  useLayoutEffect(() => {
+    return () => {
+      if (announcementTimeoutRef.current !== null) {
+        window.clearTimeout(announcementTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const grouped = useMemo(() => {
     const buckets: Record<TaskStatus, Task[]> = {
       inbox: [],
@@ -360,6 +375,29 @@ export const TaskBoard = memo(function TaskBoard({
   );
 
   /**
+   * Announce a message to screen readers with optional auto-clear.
+   */
+  const announce = useCallback(
+    (message: string | undefined, autoClear = false) => {
+      // Clear any existing timeout
+      if (announcementTimeoutRef.current !== null) {
+        window.clearTimeout(announcementTimeoutRef.current);
+        announcementTimeoutRef.current = null;
+      }
+
+      setAnnouncement(message);
+
+      if (autoClear && message) {
+        announcementTimeoutRef.current = window.setTimeout(() => {
+          setAnnouncement(undefined);
+          announcementTimeoutRef.current = null;
+        }, 3000);
+      }
+    },
+    [],
+  );
+
+  /**
    * Focus a task card by its ID and update keyboard navigation state.
    */
   const focusTask = useCallback((taskId: string | null) => {
@@ -392,12 +430,20 @@ export const TaskBoard = memo(function TaskBoard({
    * Cancel move mode and return to normal navigation.
    */
   const cancelMoveMode = useCallback(() => {
+    // Announce cancellation if we were in move mode
+    if (keyboardNav.isMoveModeActive && keyboardNav.focusedTaskId) {
+      const task = tasks.find((t) => t.id === keyboardNav.focusedTaskId);
+      if (task) {
+        announce(`Move cancelled for "${task.title}"`, true);
+      }
+    }
+
     setKeyboardNav((prev) => ({
       ...prev,
       isMoveModeActive: false,
       targetColumn: null,
     }));
-  }, []);
+  }, [keyboardNav.isMoveModeActive, keyboardNav.focusedTaskId, tasks, announce]);
 
   /**
    * Commit the move operation when in move mode.
@@ -411,9 +457,22 @@ export const TaskBoard = memo(function TaskBoard({
       return;
     }
     const currentColumn = getTaskColumn(keyboardNav.focusedTaskId);
-    if (currentColumn && currentColumn !== keyboardNav.targetColumn) {
+    const task = tasks.find((t) => t.id === keyboardNav.focusedTaskId);
+
+    if (currentColumn && currentColumn !== keyboardNav.targetColumn && task) {
+      const targetColumnName = columns.find(
+        (c) => c.status === keyboardNav.targetColumn,
+      )?.title;
+
+      // Perform the move
       onTaskMove?.(keyboardNav.focusedTaskId, keyboardNav.targetColumn);
+
+      // Announce the move completion
+      if (targetColumnName) {
+        announce(`Task "${task.title}" moved to ${targetColumnName}`, true);
+      }
     }
+
     setKeyboardNav((prev) => ({
       ...prev,
       isMoveModeActive: false,
@@ -424,7 +483,9 @@ export const TaskBoard = memo(function TaskBoard({
     keyboardNav.focusedTaskId,
     keyboardNav.targetColumn,
     getTaskColumn,
+    tasks,
     onTaskMove,
+    announce,
   ]);
 
   /**
@@ -648,21 +709,34 @@ export const TaskBoard = memo(function TaskBoard({
     }
   };
 
-  // Announce keyboard move operations to screen readers
-  const getLiveRegionText = (): string | undefined => {
+  // Generate live region text for screen reader announcements
+  const getLiveRegionText = useCallback((): string | undefined => {
+    // Priority 1: Show explicit announcements (move completed, cancelled)
+    if (announcement !== undefined) {
+      return announcement;
+    }
+
+    // Priority 2: Show move mode status
     if (!keyboardNav.isMoveModeActive || !keyboardNav.focusedTaskId) {
       return undefined;
     }
+
     const task = tasks.find((t) => t.id === keyboardNav.focusedTaskId);
     if (!task) return undefined;
-    const targetColumnName =
-      keyboardNav.targetColumn
-        ? columns.find((c) => c.status === keyboardNav.targetColumn)?.title
-        : undefined;
-    return targetColumnName
-      ? `Moving "${task.title}" to ${targetColumnName}. Press Enter to confirm or Escape to cancel.`
-      : `Move mode active for "${task.title}". Use arrow keys to select target column.`;
-  };
+
+    const currentColumnName = columns.find(
+      (c) => c.status === task.status,
+    )?.title;
+    const targetColumnName = keyboardNav.targetColumn
+      ? columns.find((c) => c.status === keyboardNav.targetColumn)?.title
+      : undefined;
+
+    if (targetColumnName && targetColumnName !== currentColumnName) {
+      return `Moving "${task.title}" to ${targetColumnName}. Press Enter to confirm or Escape to cancel.`;
+    }
+
+    return `Move mode active for "${task.title}". Use arrow keys to select target column, then press Enter to confirm.`;
+  }, [announcement, keyboardNav, tasks]);
 
   return (
     <div
@@ -739,7 +813,7 @@ export const TaskBoard = memo(function TaskBoard({
         return (
           <div
             key={column.title}
-            role="region"
+            role="list"
             aria-label={`${column.title} column`}
             aria-current={isTargetColumn ? "true" : undefined}
             aria-dropeffect={hasActiveDrag && !readOnly ? "move" : undefined}
@@ -816,7 +890,7 @@ export const TaskBoard = memo(function TaskBoard({
               ) : null}
             </div>
             <div className="rounded-b-xl border border-t-0 border-slate-200 bg-white p-3">
-              <div className="space-y-3" role="list">
+              <div className="space-y-3">
                 {filteredTasks.map((task) => {
                   const dueState = resolveDueState(task);
                   const isFocused = keyboardNav.focusedTaskId === task.id;
