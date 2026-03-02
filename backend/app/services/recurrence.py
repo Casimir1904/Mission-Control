@@ -129,3 +129,45 @@ def get_recurrence_description(recurrence: dict[str, object]) -> str:
         "yearly": "Every year",
     }
     return descriptions.get(str(frequency), f"Unknown frequency: {frequency}")
+
+
+def validate_recurrence_rule(recurrence: dict[str, object]) -> bool:
+    """Validate a recurrence rule for interval, end_date, and count limits.
+
+    Args:
+        recurrence: Dictionary containing recurrence configuration.
+            May include 'interval' (positive int), 'until' (datetime),
+            and 'count' (positive int) keys.
+
+    Returns:
+        True if the recurrence rule is valid.
+
+    Raises:
+        ValueError: If any validation constraint is violated.
+    """
+    # Validate interval (must be a positive integer)
+    interval = recurrence.get("interval")
+    if interval is not None:
+        if not isinstance(interval, int) or interval < 1:
+            raise ValueError("interval must be a positive integer")
+        if interval > 365:  # Maximum 1 year interval
+            raise ValueError("interval cannot exceed 365")
+
+    # Validate end_date (until) - must not be more than 2 years in the future
+    until = recurrence.get("until")
+    if until is not None:
+        if not isinstance(until, datetime):
+            raise ValueError("until must be a datetime")
+        max_future = datetime.now(UTC) + timedelta(days=730)  # 2 years
+        if until > max_future:
+            raise ValueError("end_date cannot be more than 2 years in the future")
+
+    # Validate count - must not exceed 100
+    count = recurrence.get("count")
+    if count is not None:
+        if not isinstance(count, int) or count < 1:
+            raise ValueError("count must be a positive integer")
+        if count > 100:
+            raise ValueError("count cannot exceed 100")
+
+    return True
