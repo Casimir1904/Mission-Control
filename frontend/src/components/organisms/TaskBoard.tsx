@@ -162,7 +162,6 @@ export const TaskBoard = memo(function TaskBoard({
     isMoveModeActive: false,
     targetColumn: null,
   });
-  const keyboardNavRef = useRef<HTMLDivElement | null>(null);
 
   // Screen reader announcement state
   const [announcement, setAnnouncement] = useState<string | undefined>(
