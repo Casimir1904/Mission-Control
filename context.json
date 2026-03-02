@@ -1,0 +1,40 @@
+{
+  "files_to_modify": {
+    "frontend": [
+      "frontend/src/components/ui/table-state.tsx",
+      "frontend/src/components/tables/DataTable.tsx",
+      "frontend/src/components/tables/DataTable.test.tsx"
+    ]
+  },
+  "files_to_reference": [
+    "frontend/src/components/ui/button.tsx",
+    "frontend/src/components/ui/card.tsx",
+    "frontend/src/components/boards/BoardsTable.tsx",
+    "frontend/src/components/agents/AgentsTable.tsx",
+    "frontend/src/app/boards/page.tsx",
+    "frontend/src/app/agents/page.tsx"
+  ],
+  "patterns": {
+    "component_pattern": "React functional components with TypeScript props interfaces",
+    "styling_pattern": "Tailwind CSS with custom CSS variables for theming",
+    "button_pattern": "Uses cva (class-variance-authority) for button variants: primary, secondary, outline, ghost",
+    "card_pattern": "Card components use rounded-2xl with surface-card class",
+    "table_empty_state_pattern": "Table components define DEFAULT_EMPTY_ICON and accept emptyState prop with icon, title, description, actionHref, actionLabel"
+  },
+  "existing_implementations": {
+    "description": "Current TableEmptyStateRow shows icon, title, description, and single action button. Multiple table types (BoardsTable, AgentsTable, BoardGroupsTable, SkillPacksTable, GatewaysTable, TagsTable, CustomFieldsTable, MarketplaceSkillsTable) use this pattern.",
+    "relevant_files": [
+      "frontend/src/components/ui/table-state.tsx",
+      "frontend/src/components/tables/DataTable.tsx"
+    ]
+  },
+  "quick_action_contexts": {
+    "boards": "Quick-create templates for common board types (Kanban, Sprint, Support)",
+    "agents": "Quick-setup guide with example agent configurations",
+    "board_groups": "Explanation of cross-board visibility benefits",
+    "gateways": "Setup wizard or connection examples",
+    "skills": "Template packs or import examples",
+    "tags": "Common tag category suggestions",
+    "custom_fields": "Field type examples and use cases"
+  }
+}
