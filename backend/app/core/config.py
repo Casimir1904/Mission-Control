@@ -54,6 +54,7 @@ class Settings(BaseSettings):
     security_header_x_frame_options: str = ""
     security_header_referrer_policy: str = ""
     security_header_permissions_policy: str = ""
+    security_header_strict_transport_security: str = ""
 
     # Database lifecycle
     db_auto_migrate: bool = False
