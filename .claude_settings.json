@@ -1,0 +1,39 @@
+{
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": true
+  },
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Read(./**)",
+      "Write(./**)",
+      "Edit(./**)",
+      "Glob(./**)",
+      "Grep(./**)",
+      "Read(/Users/holgergundlach/Development/Mission-Control/.auto-claude/worktrees/tasks/013-add-strict-transport-security-hsts-header-support/**)",
+      "Write(/Users/holgergundlach/Development/Mission-Control/.auto-claude/worktrees/tasks/013-add-strict-transport-security-hsts-header-support/**)",
+      "Edit(/Users/holgergundlach/Development/Mission-Control/.auto-claude/worktrees/tasks/013-add-strict-transport-security-hsts-header-support/**)",
+      "Glob(/Users/holgergundlach/Development/Mission-Control/.auto-claude/worktrees/tasks/013-add-strict-transport-security-hsts-header-support/**)",
+      "Grep(/Users/holgergundlach/Development/Mission-Control/.auto-claude/worktrees/tasks/013-add-strict-transport-security-hsts-header-support/**)",
+      "Read(/Users/holgergundlach/Development/Mission-Control/.auto-claude/worktrees/tasks/013-add-strict-transport-security-hsts-header-support/.auto-claude/specs/013-add-strict-transport-security-hsts-header-support/**)",
+      "Write(/Users/holgergundlach/Development/Mission-Control/.auto-claude/worktrees/tasks/013-add-strict-transport-security-hsts-header-support/.auto-claude/specs/013-add-strict-transport-security-hsts-header-support/**)",
+      "Edit(/Users/holgergundlach/Development/Mission-Control/.auto-claude/worktrees/tasks/013-add-strict-transport-security-hsts-header-support/.auto-claude/specs/013-add-strict-transport-security-hsts-header-support/**)",
+      "Read(/Users/holgergundlach/Development/Mission-Control/.auto-claude/**)",
+      "Write(/Users/holgergundlach/Development/Mission-Control/.auto-claude/**)",
+      "Edit(/Users/holgergundlach/Development/Mission-Control/.auto-claude/**)",
+      "Glob(/Users/holgergundlach/Development/Mission-Control/.auto-claude/**)",
+      "Grep(/Users/holgergundlach/Development/Mission-Control/.auto-claude/**)",
+      "Bash(*)",
+      "WebFetch(*)",
+      "WebSearch(*)",
+      "mcp__context7__resolve-library-id(*)",
+      "mcp__context7__get-library-docs(*)",
+      "mcp__graphiti-memory__search_nodes(*)",
+      "mcp__graphiti-memory__search_facts(*)",
+      "mcp__graphiti-memory__add_episode(*)",
+      "mcp__graphiti-memory__get_episodes(*)",
+      "mcp__graphiti-memory__get_entity_edge(*)"
+    ]
+  }
+}
