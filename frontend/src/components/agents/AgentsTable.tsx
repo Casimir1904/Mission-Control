@@ -3,6 +3,7 @@ import { type ReactNode, useMemo, useState } from "react";
 import {
   type ColumnDef,
   type OnChangeFn,
+  type RowSelectionState,
   type SortingState,
   type Updater,
   type VisibilityState,
@@ -42,6 +43,11 @@ type AgentsTableProps = {
   emptyMessage?: string;
   emptyState?: AgentsTableEmptyState;
   onDelete?: (agent: AgentRead) => void;
+  // Row selection props
+  enableRowSelection?: boolean;
+  rowSelection?: RowSelectionState;
+  onSelectionChange?: OnChangeFn<RowSelectionState>;
+  getRowId?: (row: AgentRead) => string;
 };
 
 const DEFAULT_EMPTY_ICON = (
@@ -75,6 +81,11 @@ export function AgentsTable({
   emptyMessage = "No agents found.",
   emptyState,
   onDelete,
+  // Row selection props
+  enableRowSelection = false,
+  rowSelection,
+  onSelectionChange,
+  getRowId,
 }: AgentsTableProps) {
   const [internalSorting, setInternalSorting] = useState<SortingState>([
     { id: "name", desc: false },
@@ -84,6 +95,15 @@ export function AgentsTable({
     onSortingChange ??
     ((updater: Updater<SortingState>) => {
       setInternalSorting(updater);
+    });
+
+  const [internalRowSelection, setInternalRowSelection] =
+    useState<RowSelectionState>({});
+  const resolvedRowSelection = rowSelection ?? internalRowSelection;
+  const handleRowSelectionChange: OnChangeFn<RowSelectionState> =
+    onSelectionChange ??
+    ((updater: Updater<RowSelectionState>) => {
+      setInternalRowSelection(updater);
     });
 
   const sortedAgents = useMemo(() => [...agents], [agents]);
@@ -162,12 +182,16 @@ export function AgentsTable({
     data: sortedAgents,
     columns,
     enableSorting: !disableSorting,
+    enableRowSelection,
     state: {
       ...(!disableSorting ? { sorting: resolvedSorting } : {}),
       ...(columnOrder ? { columnOrder } : {}),
       columnVisibility,
+      rowSelection: resolvedRowSelection,
     },
     ...(disableSorting ? {} : { onSortingChange: handleSortingChange }),
+    onRowSelectionChange: handleRowSelectionChange,
+    getRowId,
     getCoreRowModel: getCoreRowModel(),
     ...(disableSorting ? {} : { getSortedRowModel: getSortedRowModel() }),
   });
@@ -178,6 +202,10 @@ export function AgentsTable({
       isLoading={isLoading}
       emptyMessage={emptyMessage}
       stickyHeader={stickyHeader}
+      enableRowSelection={enableRowSelection}
+      rowSelection={resolvedRowSelection}
+      onSelectionChange={handleRowSelectionChange}
+      getRowId={getRowId}
       rowActions={
         showActions
           ? {
