@@ -36,6 +36,10 @@ import {
 import { DashboardShell } from "@/components/templates/DashboardShell";
 import { BoardChatComposer } from "@/components/BoardChatComposer";
 import { TaskCustomFieldsEditor } from "./TaskCustomFieldsEditor";
+import {
+  RecurrenceSelector,
+  type RecurrenceRule,
+} from "@/components/tasks/RecurrenceSelector";
 import { buildUrlWithTaskId } from "./task-detail-query";
 import { Button } from "@/components/ui/button";
 import {
@@ -206,10 +210,18 @@ const LIVE_FEED_EVENT_TYPES = new Set<LiveFeedEventType>([
 const isLiveFeedEventType = (value: string): value is LiveFeedEventType =>
   LIVE_FEED_EVENT_TYPES.has(value as LiveFeedEventType);
 
+type RecurrenceRulePayload = {
+  frequency: "daily" | "weekly" | "monthly" | "yearly";
+  interval: number;
+  until: string | null;
+};
+
 type BoardTaskCreatePayload = Parameters<
   typeof createTaskApiV1BoardsBoardIdTasksPost
 >[1] &
-  TaskCustomFieldPayload;
+  TaskCustomFieldPayload & {
+    recurrence_rule?: RecurrenceRulePayload | null;
+  };
 type BoardTaskUpdatePayload = Parameters<
   typeof updateTaskApiV1BoardsBoardIdTasksTaskIdPatch
 >[2] &
@@ -1110,6 +1122,8 @@ export default function BoardDetailPage() {
   const [createTagIds, setCreateTagIds] = useState<string[]>([]);
   const [createCustomFieldValues, setCreateCustomFieldValues] =
     useState<TaskCustomFieldValues>({});
+  const [createRecurrenceRule, setCreateRecurrenceRule] =
+    useState<RecurrenceRule | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
 
@@ -1943,6 +1957,7 @@ export default function BoardDetailPage() {
     setCreateDueDate("");
     setCreateTagIds([]);
     setCreateCustomFieldValues(defaultCreateCustomFieldValues);
+    setCreateRecurrenceRule(null);
     setCreateError(null);
   };
 
@@ -1978,6 +1993,15 @@ export default function BoardDetailPage() {
         due_at: localDateInputToUtcIso(createDueDate),
         tag_ids: createTagIds,
         custom_field_values: createCustomFieldPayload,
+        recurrence_rule: createRecurrenceRule
+          ? {
+              frequency: createRecurrenceRule.frequency,
+              interval: createRecurrenceRule.interval,
+              until: createRecurrenceRule.until
+                ? localDateInputToUtcIso(createRecurrenceRule.until)
+                : null,
+            }
+          : null,
       };
       const result = await createTaskApiV1BoardsBoardIdTasksPost(
         boardId,
@@ -4446,6 +4470,13 @@ export default function BoardDetailPage() {
                 type="date"
                 value={createDueDate}
                 onChange={(event) => setCreateDueDate(event.target.value)}
+                disabled={!canWrite || isCreating}
+              />
+            </div>
+            <div className="space-y-2">
+              <RecurrenceSelector
+                value={createRecurrenceRule}
+                onChange={setCreateRecurrenceRule}
                 disabled={!canWrite || isCreating}
               />
             </div>
