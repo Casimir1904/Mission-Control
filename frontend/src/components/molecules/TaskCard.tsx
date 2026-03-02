@@ -1,4 +1,4 @@
-import { CalendarClock, UserCircle } from "lucide-react";
+import { CalendarClock, Move, UserCircle } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -94,9 +94,9 @@ export function TaskCard({
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)] focus-visible:ring-offset-2",
         isKeyboardFocused &&
           "ring-2 ring-[color:var(--accent)] ring-offset-2",
-        // Keyboard move mode styles
+        // Keyboard move mode styles - dashed border and highlight indicate being moved
         isKeyboardMoving &&
-          "ring-2 ring-indigo-500 ring-offset-2 bg-indigo-50/50 border-indigo-300",
+          "ring-2 ring-indigo-500 ring-offset-2 bg-indigo-50/50 border-indigo-300 border-dashed",
       )}
       draggable={draggable}
       onDragStart={onDragStart}
@@ -130,6 +130,12 @@ export function TaskCard({
           <p className="text-sm font-medium text-slate-900 line-clamp-2 break-words">
             {title}
           </p>
+          {isKeyboardMoving ? (
+            <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-indigo-700">
+              <Move className="h-3 w-3" />
+              Moving to {columnLabel}
+            </div>
+          ) : null}
           {isBlocked ? (
             <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-rose-700">
               <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
