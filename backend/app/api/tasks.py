@@ -2696,6 +2696,67 @@ async def _finalize_updated_task(
     )
 
 
+@router.get(
+    "/{task_id}/recurrence",
+    response_model=list[TaskRead],
+)
+async def get_task_recurrence_chain(
+    task: Task = TASK_DEP,
+    session: AsyncSession = SESSION_DEP,
+) -> list[TaskRead]:
+    """Get the recurrence chain for a task.
+
+    Returns all tasks in the recurrence chain ordered by creation date.
+    This includes the root task and all subsequent occurrences.
+    """
+    # If task is not part of a recurrence chain and has no recurrence rule, return just this task
+    if not task.recurrence_parent_id and not task.recurrence_next_task_id and not task.recurrence_rule:
+        return [await _task_read_response(session, task=task, board_id=task.board_id)]
+
+    # Collect all task IDs in the chain
+    task_ids: list[UUID] = []
+
+    # First, walk backwards to find the root task
+    current_task = task
+    while current_task.recurrence_parent_id:
+        task_ids.append(current_task.id)
+        parent_task = await Task.objects.by_id(current_task.recurrence_parent_id).first(session)
+        if parent_task is None:
+            break
+        current_task = parent_task
+
+    # Add the root task if not already added
+    if current_task.id not in task_ids:
+        task_ids.append(current_task.id)
+
+    # Now walk forwards from the original task to find all descendants
+    # We need to re-fetch the original task if we moved up the chain
+    if task.id != current_task.id:
+        current_task = task
+
+    while current_task.recurrence_next_task_id:
+        next_task = await Task.objects.by_id(current_task.recurrence_next_task_id).first(session)
+        if next_task is None or next_task.id in task_ids:
+            break
+        task_ids.append(next_task.id)
+        current_task = next_task
+
+    # Fetch all tasks in the chain
+    tasks_result = await Task.objects.filter_by(board_id=task.board_id).filter(
+        col(Task.id).in_(task_ids)
+    ).all(session)
+
+    # Build task reads preserving order (by created_at)
+    sorted_tasks = sorted(tasks_result, key=lambda t: t.created_at)
+
+    result: list[TaskRead] = []
+    for t in sorted_tasks:
+        task_read = await _task_read_response(session, task=t, board_id=task.board_id)
+        result.append(task_read)
+
+    return result
+
+
 @router.post("/{task_id}/comments", response_model=TaskCommentRead)
 async def create_task_comment(
     payload: TaskCommentCreate,
