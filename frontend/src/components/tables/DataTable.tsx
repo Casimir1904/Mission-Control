@@ -1,7 +1,13 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 
-import { type Row, type Table, flexRender } from "@tanstack/react-table";
+import {
+  type Row,
+  type RowSelectionState,
+  type Table,
+  type OnChangeFn,
+  flexRender,
+} from "@tanstack/react-table";
 
 import {
   TableEmptyStateRow,
@@ -47,6 +53,11 @@ type DataTableProps<TData> = {
   bodyClassName?: string;
   rowClassName?: string | ((row: Row<TData>) => string);
   cellClassName?: string;
+  // Row selection props
+  enableRowSelection?: boolean;
+  rowSelection?: RowSelectionState;
+  onSelectionChange?: OnChangeFn<RowSelectionState>;
+  getRowId?: (row: TData) => string;
 };
 
 export function DataTable<TData>({
@@ -63,6 +74,10 @@ export function DataTable<TData>({
   bodyClassName = "divide-y divide-slate-100",
   rowClassName = "hover:bg-slate-50",
   cellClassName = "px-6 py-4",
+  enableRowSelection = false,
+  rowSelection,
+  onSelectionChange,
+  getRowId,
 }: DataTableProps<TData>) {
   const resolvedRowActions = rowActions
     ? (rowActions.actions ??
@@ -84,8 +99,11 @@ export function DataTable<TData>({
       ].filter((value): value is DataTableRowAction<TData> => value !== null))
     : [];
   const hasRowActions = resolvedRowActions.length > 0;
+  const hasSelection = enableRowSelection;
   const colSpan =
-    (table.getVisibleLeafColumns().length || 1) + (hasRowActions ? 1 : 0);
+    (table.getVisibleLeafColumns().length || 1) +
+    (hasRowActions ? 1 : 0) +
+    (hasSelection ? 1 : 0);
 
   return (
     <div className="overflow-x-auto">
@@ -98,6 +116,24 @@ export function DataTable<TData>({
         >
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
+              {hasSelection ? (
+                <th className={`${headerCellClassName} w-10`}>
+                  <div className="flex items-center justify-center">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4"
+                      checked={table.getIsAllRowsSelected()}
+                      ref={(input) => {
+                        if (input) {
+                          input.indeterminate = table.getIsSomeRowsSelected();
+                        }
+                      }}
+                      onChange={table.getToggleAllRowsSelectedHandler()}
+                      aria-label="Select all rows"
+                    />
+                  </div>
+                </th>
+              ) : null}
               {headerGroup.headers.map((header) => (
                 <th key={header.id} className={headerCellClassName}>
                   {header.isPlaceholder ? null : header.column.getCanSort() ? (
@@ -149,6 +185,19 @@ export function DataTable<TData>({
                     : rowClassName
                 }
               >
+                {hasSelection ? (
+                  <td className={`${cellClassName} w-10`}>
+                    <div className="flex items-center justify-center">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4"
+                        checked={row.getIsSelected()}
+                        onChange={row.getToggleSelectedHandler()}
+                        aria-label="Select row"
+                      />
+                    </div>
+                  </td>
+                ) : null}
                 {row.getVisibleCells().map((cell) => (
                   <td key={cell.id} className={cellClassName}>
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
