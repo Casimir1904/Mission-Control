@@ -1061,3 +1061,101 @@ def test_run_git_clone_with_branch_injection_attempt_is_still_safe() -> None:
         assert call_args[branch_index] == malicious_branch
         # shell=False prevents shell interpretation of the semicolon
         assert mock_run.call_args[1].get("shell") is False
+
+
+def test_run_git_clone_raises_runtime_error_on_timeout() -> None:
+    """Verify that _run_git_clone raises RuntimeError when git clone times out."""
+    import subprocess
+    from unittest.mock import patch
+
+    from app.api.skills_marketplace import (
+        GIT_CLONE_TIMEOUT_SECONDS,
+        _run_git_clone,
+    )
+
+    with patch("subprocess.run") as mock_run:
+        mock_run.side_effect = subprocess.TimeoutExpired(
+            cmd=["git", "clone"],
+            timeout=GIT_CLONE_TIMEOUT_SECONDS,
+        )
+
+        with pytest.raises(RuntimeError) as exc_info:
+            _run_git_clone(
+                "https://github.com/example/repo",
+                Path("/tmp/test"),
+                branch="main",
+            )
+
+        assert "timed out" in str(exc_info.value).lower()
+        assert f"{GIT_CLONE_TIMEOUT_SECONDS}s" in str(exc_info.value)
+
+
+def test_get_current_branch_returns_none_on_timeout() -> None:
+    """Verify that _get_current_branch returns None when git rev-parse times out."""
+    import subprocess
+    from unittest.mock import patch
+
+    from app.api.skills_marketplace import (
+        GIT_REV_PARSE_TIMEOUT_SECONDS,
+        _get_current_branch,
+    )
+
+    with patch("subprocess.run") as mock_run:
+        mock_run.side_effect = subprocess.TimeoutExpired(
+            cmd=["git", "rev-parse"],
+            timeout=GIT_REV_PARSE_TIMEOUT_SECONDS,
+        )
+
+        result = _get_current_branch(Path("/tmp/test-repo"))
+
+        assert result is None
+
+
+def test_run_git_clone_respects_timeout_seconds() -> None:
+    """Verify that _run_git_clone uses the configured timeout value."""
+    import subprocess
+    from unittest.mock import patch
+
+    from app.api.skills_marketplace import (
+        GIT_CLONE_TIMEOUT_SECONDS,
+        _run_git_clone,
+    )
+
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=["git", "clone"],
+            returncode=0,
+            stdout=b"",
+            stderr=b"",
+        )
+
+        _run_git_clone("https://github.com/example/repo", Path("/tmp/test"))
+
+        assert mock_run.called
+        call_kwargs = mock_run.call_args[1]
+        assert call_kwargs.get("timeout") == GIT_CLONE_TIMEOUT_SECONDS
+
+
+def test_get_current_branch_respects_timeout_seconds() -> None:
+    """Verify that _get_current_branch uses the configured timeout value."""
+    import subprocess
+    from unittest.mock import patch
+
+    from app.api.skills_marketplace import (
+        GIT_REV_PARSE_TIMEOUT_SECONDS,
+        _get_current_branch,
+    )
+
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=["git", "rev-parse"],
+            returncode=0,
+            stdout=b"main\n",
+            stderr=b"",
+        )
+
+        _get_current_branch(Path("/tmp/test-repo"))
+
+        assert mock_run.called
+        call_kwargs = mock_run.call_args[1]
+        assert call_kwargs.get("timeout") == GIT_REV_PARSE_TIMEOUT_SECONDS
