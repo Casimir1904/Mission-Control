@@ -1,4 +1,4 @@
-import { CalendarClock, UserCircle } from "lucide-react";
+import { CalendarClock, Move, UserCircle } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -16,8 +16,15 @@ interface TaskCardProps {
   isBlocked?: boolean;
   blockedByCount?: number;
   onClick?: () => void;
+  onFocus?: () => void;
   draggable?: boolean;
   isDragging?: boolean;
+  /** Whether this card is focused via keyboard navigation */
+  isKeyboardFocused?: boolean;
+  /** Whether this card is being moved via keyboard */
+  isKeyboardMoving?: boolean;
+  /** The target column when moving via keyboard */
+  keyboardTargetColumn?: TaskStatus | null;
   onDragStart?: (event: React.DragEvent<HTMLDivElement>) => void;
   onDragEnd?: (event: React.DragEvent<HTMLDivElement>) => void;
 }
@@ -34,8 +41,12 @@ export function TaskCard({
   isBlocked = false,
   blockedByCount = 0,
   onClick,
+  onFocus,
   draggable = false,
   isDragging = false,
+  isKeyboardFocused = false,
+  isKeyboardMoving = false,
+  keyboardTargetColumn = null,
   onDragStart,
   onDragEnd,
 }: TaskCardProps) {
@@ -67,6 +78,12 @@ export function TaskCard({
   const priorityLabel = priority ? priority.toUpperCase() : "MEDIUM";
   const visibleTags = tags.slice(0, 3);
 
+  const columnLabel = keyboardTargetColumn
+    ? keyboardTargetColumn.replace(/_/g, " ")
+    : "";
+
+  const isGrabbed = isDragging || isKeyboardMoving;
+
   return (
     <div
       className={cn(
@@ -75,13 +92,27 @@ export function TaskCard({
         hasPendingApproval && "border-amber-200 bg-amber-50/40",
         isBlocked && "border-rose-200 bg-rose-50/50",
         needsLeadReview && "border-indigo-200 bg-indigo-50/30",
+        // Keyboard focus styles - matches button focus pattern
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)] focus-visible:ring-offset-2",
+        isKeyboardFocused &&
+          "ring-2 ring-[color:var(--accent)] ring-offset-2",
+        // Keyboard move mode styles - dashed border and highlight indicate being moved
+        isKeyboardMoving &&
+          "ring-2 ring-indigo-500 ring-offset-2 bg-indigo-50/50 border-indigo-300 border-dashed",
       )}
       draggable={draggable}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onClick={onClick}
+      onFocus={onFocus}
       role="button"
       tabIndex={0}
+      aria-grabbed={isGrabbed}
+      aria-label={
+        isKeyboardMoving
+          ? `Moving to ${columnLabel}. Press Enter to confirm or Escape to cancel.`
+          : undefined
+      }
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
@@ -102,6 +133,12 @@ export function TaskCard({
           <p className="text-sm font-medium text-slate-900 line-clamp-2 break-words">
             {title}
           </p>
+          {isKeyboardMoving ? (
+            <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-indigo-700">
+              <Move className="h-3 w-3" />
+              Moving to {columnLabel}
+            </div>
+          ) : null}
           {isBlocked ? (
             <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-rose-700">
               <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
