@@ -6,17 +6,20 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sse_starlette.sse import EventSourceResponse
+from sqlmodel import col, select
 
 from app.api.deps import ActorContext, require_admin_or_agent, require_org_admin
 from app.core.auth import AuthContext, get_auth_context
 from app.db.session import get_session
+from app.models.agents import Agent
 from app.schemas.agents import (
     AgentCreate,
     AgentHeartbeat,
     AgentHeartbeatCreate,
     AgentRead,
+    AgentsBulkDeleteRequest,
     AgentUpdate,
 )
 from app.schemas.common import OkResponse
@@ -166,3 +169,40 @@ async def delete_agent(
     """Delete an agent and clean related task state."""
     service = AgentLifecycleService(session)
     return await service.delete_agent(agent_id=agent_id, ctx=ctx)
+
+
+@router.post("/bulk-delete", response_model=OkResponse)
+async def bulk_delete_agents(
+    payload: AgentsBulkDeleteRequest,
+    session: AsyncSession = SESSION_DEP,
+    ctx: OrganizationContext = ORG_ADMIN_DEP,
+) -> OkResponse:
+    """Bulk delete agents and clean related task state."""
+    if not payload.ids:
+        return OkResponse()
+
+    service = AgentLifecycleService(session)
+
+    # Fetch all agents that belong to this organization context
+    agents = list(
+        await session.exec(
+            select(Agent).where(
+                col(Agent.id).in_(payload.ids),
+            ),
+        )
+    )
+
+    # Verify all requested agents exist and user has access
+    found_ids = {agent.id for agent in agents}
+    if found_ids != set(payload.ids):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
+
+    # Verify access to each agent
+    for agent in agents:
+        await service.require_agent_access(agent=agent, ctx=ctx, write=True)
+
+    # Delete all agents
+    for agent in agents:
+        await service._delete_agent_record(agent=agent)
+
+    return OkResponse()

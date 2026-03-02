@@ -18,7 +18,7 @@ from app.models.tag_assignments import TagAssignment
 from app.models.tags import Tag
 from app.schemas.common import OkResponse
 from app.schemas.pagination import DefaultLimitOffsetPage
-from app.schemas.tags import TagCreate, TagRead, TagUpdate
+from app.schemas.tags import TagCreate, TagRead, TagsBulkDeleteRequest, TagUpdate
 from app.services.organizations import OrganizationContext
 from app.services.tags import slugify_tag, task_counts_for_tags
 
@@ -216,5 +216,46 @@ async def delete_tag(
         commit=False,
     )
     await session.delete(tag)
+    await session.commit()
+    return OkResponse()
+
+
+@router.post("/bulk-delete", response_model=OkResponse)
+async def bulk_delete_tags(
+    payload: TagsBulkDeleteRequest,
+    session: AsyncSession = SESSION_DEP,
+    ctx: OrganizationContext = ORG_ADMIN_DEP,
+) -> OkResponse:
+    """Bulk delete tags and remove all associated tag links."""
+    if not payload.ids:
+        return OkResponse()
+
+    # Fetch all tags that belong to this organization
+    tags = list(
+        await session.exec(
+            select(Tag).where(
+                col(Tag.id).in_(payload.ids),
+                col(Tag.organization_id) == ctx.organization.id,
+            ),
+        )
+    )
+
+    # If any requested tags don't exist or don't belong to this org, return 403
+    found_ids = {tag.id for tag in tags}
+    if found_ids != set(payload.ids):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
+
+    # Delete all tag assignments first
+    await crud.delete_where(
+        session,
+        TagAssignment,
+        col(TagAssignment.tag_id).in_(payload.ids),
+        commit=False,
+    )
+
+    # Delete all tags
+    for tag in tags:
+        await session.delete(tag)
+
     await session.commit()
     return OkResponse()

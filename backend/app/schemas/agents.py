@@ -330,3 +330,9 @@ class AgentNudge(SQLModel):
         description="Short message to direct an agent toward immediate attention.",
         examples=["Please update the incident triage status for task T-001."],
     )
+
+
+class AgentsBulkDeleteRequest(SQLModel):
+    """Payload for bulk deleting agents."""
+
+    ids: list[UUID]

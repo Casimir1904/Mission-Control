@@ -6,13 +6,15 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import type { RowSelectionState } from "@tanstack/react-table";
 import { useAuth } from "@/auth/clerk";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { ApiError } from "@/api/mutator";
 import {
   getListTagsApiV1TagsGetQueryKey,
   type listTagsApiV1TagsGetResponse,
+  deleteTagApiV1TagsTagIdDelete,
   useDeleteTagApiV1TagsTagIdDelete,
   useListTagsApiV1TagsGet,
 } from "@/api/generated/tags/tags";
@@ -21,6 +23,7 @@ import { TagsTable } from "@/components/tags/TagsTable";
 import { DashboardPageLayout } from "@/components/templates/DashboardPageLayout";
 import { buttonVariants } from "@/components/ui/button";
 import { ConfirmActionDialog } from "@/components/ui/confirm-action-dialog";
+import { createOptimisticListBulkDeleteMutation } from "@/lib/list-bulk-operations";
 import { useOrganizationMembership } from "@/lib/use-organization-membership";
 import { useUrlSorting } from "@/lib/use-url-sorting";
 
@@ -44,6 +47,8 @@ export default function TagsPage() {
   });
 
   const [deleteTarget, setDeleteTarget] = useState<TagRead | null>(null);
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
 
   const tagsQuery = useListTagsApiV1TagsGet<
     listTagsApiV1TagsGetResponse,
@@ -62,6 +67,10 @@ export default function TagsPage() {
   );
   const tagsKey = getListTagsApiV1TagsGetQueryKey();
 
+  const selectedTagIds = useMemo(() => {
+    return Object.keys(rowSelection);
+  }, [rowSelection]);
+
   const deleteMutation = useDeleteTagApiV1TagsTagIdDelete({
     mutation: {
       onSuccess: async () => {
@@ -74,6 +83,39 @@ export default function TagsPage() {
   const handleDelete = () => {
     if (!deleteTarget) return;
     deleteMutation.mutate({ tagId: deleteTarget.id });
+  };
+
+  const bulkDeleteMutation = useMutation<
+    void,
+    ApiError,
+    { tagIds: string[] },
+    { previous?: listTagsApiV1TagsGetResponse }
+  >({
+    mutationFn: async ({ tagIds }) => {
+      await Promise.all(
+        tagIds.map((tagId) => deleteTagApiV1TagsTagIdDelete(tagId)),
+      );
+    },
+    ...createOptimisticListBulkDeleteMutation<
+      TagRead,
+      listTagsApiV1TagsGetResponse,
+      { tagIds: string[] }
+    >({
+      queryClient,
+      queryKey: tagsKey,
+      getItemId: (tag) => tag.id,
+      getDeleteIds: ({ tagIds }) => tagIds,
+      onSuccess: () => {
+        setRowSelection({});
+        setIsBulkDeleteOpen(false);
+      },
+      invalidateQueryKeys: [tagsKey],
+    }),
+  });
+
+  const handleBulkDelete = () => {
+    if (selectedTagIds.length === 0) return;
+    bulkDeleteMutation.mutate({ tagIds: selectedTagIds });
   };
 
   return (
@@ -115,6 +157,10 @@ export default function TagsPage() {
                 : undefined
             }
             onDelete={isAdmin ? setDeleteTarget : undefined}
+            enableRowSelection={isAdmin}
+            rowSelection={rowSelection}
+            onSelectionChange={setRowSelection}
+            getRowId={(tag) => tag.id}
             emptyState={{
               title: "No tags yet",
               description:
@@ -151,6 +197,29 @@ export default function TagsPage() {
         }
         onConfirm={handleDelete}
         isConfirming={deleteMutation.isPending}
+      />
+
+      <ConfirmActionDialog
+        open={isBulkDeleteOpen}
+        onOpenChange={(open) => {
+          if (!open) setIsBulkDeleteOpen(false);
+        }}
+        ariaLabel="Delete tags"
+        title="Delete tags"
+        description={
+          <>
+            This will remove {selectedTagIds.length} selected tag
+            {selectedTagIds.length === 1 ? "" : "s"} from all tagged tasks.
+            This action cannot be undone.
+          </>
+        }
+        errorMessage={
+          bulkDeleteMutation.error
+            ? extractErrorMessage(bulkDeleteMutation.error, "Unable to delete tags.")
+            : undefined
+        }
+        onConfirm={handleBulkDelete}
+        isConfirming={bulkDeleteMutation.isPending}
       />
     </>
   );
