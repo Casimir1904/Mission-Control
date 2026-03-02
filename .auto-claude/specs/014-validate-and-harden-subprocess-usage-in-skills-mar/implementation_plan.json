@@ -39,7 +39,8 @@
             "type": "manual",
             "instructions": "Trace data flow: source_url comes from user input via SkillPackCreate/MarketplaceSkillCreate schemas, branch comes from payload.branch or pack.branch. Both flow to _collect_pack_skills_with_warnings() and then to subprocess.run() calls."
           },
-          "status": "pending"
+          "status": "completed",
+          "notes": "Security analysis complete. Identified user-controlled inputs: (1) source_url from SkillPackCreate/MarketplaceSkillCreate schemas (validated via _validate_pack_source_url() - only https://github.com/* allowed), (2) branch from payload.branch or pack.branch (validated via _normalize_pack_branch() - whitelist regex ^[A-Za-z0-9._/\\-]+$). Both flow to _collect_pack_skills_with_warnings() at lines 597-681, then to subprocess.run() calls at lines 613-629 (git clone), 637-643 (fallback git clone), and 663-669 (git rev-parse). All subprocess calls use list arguments (implicit shell=False)."
         }
       ]
     },
@@ -374,5 +375,5 @@
   },
   "status": "in_progress",
   "planStatus": "in_progress",
-  "updated_at": "2026-03-02T01:12:12.010Z"
+  "updated_at": "2026-03-02T01:14:54.543Z"
 }

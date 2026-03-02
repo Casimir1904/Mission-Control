@@ -27,3 +27,6 @@ backend/coverage.*
 backend/.coverage
 frontend/coverage
 backend/app/services/openclaw/.device-keys
+
+# Auto Claude data directory
+.auto-claude/

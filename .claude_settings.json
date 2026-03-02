@@ -1,0 +1,39 @@
+{
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": true
+  },
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Read(./**)",
+      "Write(./**)",
+      "Edit(./**)",
+      "Glob(./**)",
+      "Grep(./**)",
+      "Read(/Users/holgergundlach/Development/Mission-Control/.auto-claude/worktrees/tasks/014-validate-and-harden-subprocess-usage-in-skills-mar/**)",
+      "Write(/Users/holgergundlach/Development/Mission-Control/.auto-claude/worktrees/tasks/014-validate-and-harden-subprocess-usage-in-skills-mar/**)",
+      "Edit(/Users/holgergundlach/Development/Mission-Control/.auto-claude/worktrees/tasks/014-validate-and-harden-subprocess-usage-in-skills-mar/**)",
+      "Glob(/Users/holgergundlach/Development/Mission-Control/.auto-claude/worktrees/tasks/014-validate-and-harden-subprocess-usage-in-skills-mar/**)",
+      "Grep(/Users/holgergundlach/Development/Mission-Control/.auto-claude/worktrees/tasks/014-validate-and-harden-subprocess-usage-in-skills-mar/**)",
+      "Read(/Users/holgergundlach/Development/Mission-Control/.auto-claude/worktrees/tasks/014-validate-and-harden-subprocess-usage-in-skills-mar/.auto-claude/specs/014-validate-and-harden-subprocess-usage-in-skills-mar/**)",
+      "Write(/Users/holgergundlach/Development/Mission-Control/.auto-claude/worktrees/tasks/014-validate-and-harden-subprocess-usage-in-skills-mar/.auto-claude/specs/014-validate-and-harden-subprocess-usage-in-skills-mar/**)",
+      "Edit(/Users/holgergundlach/Development/Mission-Control/.auto-claude/worktrees/tasks/014-validate-and-harden-subprocess-usage-in-skills-mar/.auto-claude/specs/014-validate-and-harden-subprocess-usage-in-skills-mar/**)",
+      "Read(/Users/holgergundlach/Development/Mission-Control/.auto-claude/**)",
+      "Write(/Users/holgergundlach/Development/Mission-Control/.auto-claude/**)",
+      "Edit(/Users/holgergundlach/Development/Mission-Control/.auto-claude/**)",
+      "Glob(/Users/holgergundlach/Development/Mission-Control/.auto-claude/**)",
+      "Grep(/Users/holgergundlach/Development/Mission-Control/.auto-claude/**)",
+      "Bash(*)",
+      "WebFetch(*)",
+      "WebSearch(*)",
+      "mcp__context7__resolve-library-id(*)",
+      "mcp__context7__get-library-docs(*)",
+      "mcp__graphiti-memory__search_nodes(*)",
+      "mcp__graphiti-memory__search_facts(*)",
+      "mcp__graphiti-memory__add_episode(*)",
+      "mcp__graphiti-memory__get_episodes(*)",
+      "mcp__graphiti-memory__get_entity_edge(*)"
+    ]
+  }
+}
