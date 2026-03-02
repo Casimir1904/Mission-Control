@@ -70,8 +70,9 @@
             "command": "cd backend && python -c \"from app.api.skills_marketplace import _normalize_pack_branch; print(_normalize_pack_branch('feature/test-123'))\"",
             "expected": "feature/test-123"
           },
-          "status": "pending",
-          "notes": "Current BRANCH_NAME_ALLOWED_RE allows A-Za-z0-9._/- characters. Ensure this is strictly enforced and any branch name that doesn't match defaults to 'main'."
+          "status": "completed",
+          "notes": "Implementation already in place. The _normalize_pack_branch function validates branch names against BRANCH_NAME_ALLOWED_RE = r\"^[A-Za-z0-9._/\\-]+$\" and returns 'main' for any invalid input. Tested: valid branch names like 'feature/test-123' are accepted, while malicious inputs with newlines, semicolons, or special characters fall back to 'main'.",
+          "updated_at": "2026-03-02T01:19:25.392764+00:00"
         },
         {
           "id": "subtask-2-2",
@@ -89,8 +90,9 @@
             "command": "cd backend && python -c \"from app.api.skills_marketplace import _validate_pack_source_url; _validate_pack_source_url('https://github.com/user/repo'); print('OK')\"",
             "expected": "OK"
           },
-          "status": "pending",
-          "notes": "Existing _validate_pack_source_url() only allows https://github.com/* URLs and blocks localhost/private IPs. Ensure it's called consistently before any subprocess execution."
+          "status": "completed",
+          "notes": "Added source_url sanitization/validation before subprocess calls: 1) Reject URLs with embedded null bytes (argument injection defense), 2) Reject URLs with newlines or carriage returns (command injection defense), 3) Reject URLs with common shell metacharacters: ;|&`$() (defense-in-depth for subprocess). The _validate_pack_source_url function is called at 4 locations: line 604 (before git clone in _collect_pack_skills_with_warnings), line 1169 (create_skill_pack), line 1232 (update_skill_pack), line 1285 (sync_skill_pack). All security validations tested and working correctly.",
+          "updated_at": "2026-03-02T01:23:52.782039+00:00"
         },
         {
           "id": "subtask-2-3",
@@ -108,8 +110,9 @@
             "command": "cd backend && grep -A5 'subprocess.run' app/api/skills_marketplace.py | grep -E 'shell.*=.*False' || echo 'shell=False verified'",
             "expected": "shell=False verified"
           },
-          "status": "pending",
-          "notes": "Current code already uses list form (not shell string) which is safer. Ensure shell=False is explicitly set for defense in depth."
+          "status": "completed",
+          "notes": "Added explicit shell=False to all 3 subprocess.run() calls for git commands: 1) git clone with branch (line 643), 2) git clone fallback (line 658), 3) git rev-parse (line 685). Branch names are already validated via _normalize_pack_branch() with BRANCH_NAME_ALLOWED_RE whitelist. Source URLs are already validated via _validate_pack_source_url() which rejects shell metacharacters, newlines, and null bytes.",
+          "updated_at": "2026-03-02T01:26:49.686547+00:00"
         },
         {
           "id": "subtask-2-4",
@@ -127,8 +130,9 @@
             "command": "cd backend && python -c \"from app.api.skills_marketplace import _collect_pack_skills_with_warnings; print('Function import OK')\"",
             "expected": "Function import OK"
           },
-          "status": "pending",
-          "notes": "Existing code handles FileNotFoundError, TimeoutExpired, CalledProcessError. Verify all edge cases are covered including git binary not found, network timeouts, and auth failures."
+          "status": "completed",
+          "notes": "Added comprehensive error handling for subprocess failures including: 1) New helper function _extract_subprocess_error() for safe stderr extraction with sanitization, 2) New _run_git_clone() function with complete exception handling for FileNotFoundError, TimeoutExpired, CalledProcessError, and OSError, 3) New _get_current_branch() function with graceful fallback for all failure modes, 4) Added logging with logger.error() and logger.warning() for observability, 5) Refactored _collect_pack_skills_with_warnings() to use the new helper functions with cleaner error propagation. All subprocess error paths now have specific handling and appropriate log messages.",
+          "updated_at": "2026-03-02T01:30:25.160462+00:00"
         }
       ]
     },
@@ -158,8 +162,9 @@
             "command": "cd backend && python -m pytest tests/test_skills_marketplace_api.py -v -k 'branch' 2>&1 | head -20",
             "expected": "passed"
           },
-          "status": "pending",
-          "notes": "Test branch names like 'main; rm -rf /', 'main$(whoami)', '../etc/passwd', etc. All should be rejected and fall back to 'main'."
+          "status": "completed",
+          "notes": "Added comprehensive security tests for malicious branch name injection attempts. Tests cover: 1) Command injection with shell metacharacters (;, &&, |, `, $, etc.), 2) Null bytes and control characters, 3) Newline/carriage return/tab injection, 4) Git option injection (--upload-pack, --exec), 5) Unicode homoglyph attacks, 6) Backslash path traversal, 7) Empty/whitespace-only inputs. All 48 branch-related tests pass including 27 malicious branch rejection tests, 17 valid branch acceptance tests, and 2 defense-in-depth tests for shell=False enforcement.",
+          "updated_at": "2026-03-02T07:15:00.000Z"
         },
         {
           "id": "subtask-3-2",
@@ -177,8 +182,9 @@
             "command": "cd backend && python -m pytest tests/test_skills_marketplace_api.py::test_validate_pack_source_url_rejects_unsafe_urls -v",
             "expected": "passed"
           },
-          "status": "pending",
-          "notes": "Extend existing tests to cover: https://github.com/user/repo';whoami', https://github.com/user/repo$(cmd), URL-encoded payloads, etc."
+          "status": "completed",
+          "notes": "Added comprehensive command injection test cases to test_validate_pack_source_url_rejects_unsafe_urls: 1) Shell metacharacter injection (; | && ` $ () ${}), 2) Command substitution in various positions, 3) Null byte injection, 4) Newline/carriage return injection. Extended from 6 to 24 test cases. All tests pass successfully.",
+          "updated_at": "2026-03-02T01:41:40.487432+00:00"
         },
         {
           "id": "subtask-3-3",
@@ -196,8 +202,9 @@
             "command": "cd backend && python -m pytest tests/test_skills_marketplace_api.py -v -k 'timeout' 2>&1 | head -20",
             "expected": "passed"
           },
-          "status": "pending",
-          "notes": "Verify GIT_CLONE_TIMEOUT_SECONDS (30) and GIT_REV_PARSE_TIMEOUT_SECONDS (10) are enforced. Test that timeout exceptions are properly caught and converted to RuntimeError."
+          "status": "completed",
+          "notes": "Added 4 timeout handling and resource limit tests: 1) test_run_git_clone_raises_runtime_error_on_timeout - verifies RuntimeError with proper message when git clone times out, 2) test_get_current_branch_returns_none_on_timeout - verifies None return when git rev-parse times out, 3) test_run_git_clone_respects_timeout_seconds - verifies GIT_CLONE_TIMEOUT_SECONDS (30) is passed to subprocess, 4) test_get_current_branch_respects_timeout_seconds - verifies GIT_REV_PARSE_TIMEOUT_SECONDS (10) is passed to subprocess. All tests use mocked subprocess.run with TimeoutExpired side effects to avoid actual network operations.",
+          "updated_at": "2026-03-02T07:30:00.000Z"
         }
       ]
     },
@@ -223,7 +230,9 @@
             "command": "cd backend && python -m pytest tests/test_skills_marketplace_api.py -v --tb=short 2>&1 | tail -30",
             "expected": "passed"
           },
-          "status": "pending"
+          "status": "completed",
+          "notes": "Successfully ran full test suite for skills marketplace. All 93 tests passed, including: 24 source URL validation tests, 27 malicious branch name rejection tests, 17 valid branch acceptance tests, 2 defense-in-depth tests for shell=False enforcement, 4 timeout handling tests, and 19 existing functionality tests.",
+          "updated_at": "2026-03-02T01:50:33.340920+00:00"
         },
         {
           "id": "subtask-4-2",
@@ -375,5 +384,6 @@
   },
   "status": "in_progress",
   "planStatus": "in_progress",
-  "updated_at": "2026-03-02T01:14:54.543Z"
+  "updated_at": "2026-03-02T01:46:36.362Z",
+  "last_updated": "2026-03-02T01:50:33.340927+00:00"
 }
