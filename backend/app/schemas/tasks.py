@@ -19,6 +19,16 @@ STATUS_REQUIRED_ERROR = "status is required"
 # deferred annotations reliably.
 RUNTIME_ANNOTATION_TYPES = (datetime, UUID, NonEmptyStr, TagRef)
 
+RecurrenceFrequency = Literal["daily", "weekly", "monthly", "yearly"]
+
+
+class RecurrenceRule(SQLModel):
+    """Schema for validating recurrence patterns."""
+
+    frequency: RecurrenceFrequency
+    interval: int = 1
+    until: datetime | None = None
+
 
 class TaskBase(SQLModel):
     """Shared task fields used by task create/read payloads."""
@@ -31,6 +41,7 @@ class TaskBase(SQLModel):
     assigned_agent_id: UUID | None = None
     depends_on_task_ids: list[UUID] = Field(default_factory=list)
     tag_ids: list[UUID] = Field(default_factory=list)
+    recurrence_rule: RecurrenceRule | None = None
 
 
 class TaskCreate(TaskBase):
@@ -51,6 +62,7 @@ class TaskUpdate(SQLModel):
     assigned_agent_id: UUID | None = None
     depends_on_task_ids: list[UUID] | None = None
     tag_ids: list[UUID] | None = None
+    recurrence_rule: RecurrenceRule | None = None
     custom_field_values: TaskCustomFieldValues | None = None
     comment: NonEmptyStr | None = None
 

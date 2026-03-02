@@ -1,4 +1,4 @@
-import { CalendarClock, Move, UserCircle } from "lucide-react";
+import { CalendarClock, Move, RefreshCcw, UserCircle } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -15,6 +15,7 @@ interface TaskCardProps {
   tags?: Array<{ id: string; name: string; color: string }>;
   isBlocked?: boolean;
   blockedByCount?: number;
+  isRecurring?: boolean;
   onClick?: () => void;
   onFocus?: () => void;
   draggable?: boolean;
@@ -40,6 +41,7 @@ export function TaskCard({
   tags = [],
   isBlocked = false,
   blockedByCount = 0,
+  isRecurring = false,
   onClick,
   onFocus,
   draggable = false,
@@ -176,6 +178,12 @@ export function TaskCard({
                   +{tags.length - visibleTags.length}
                 </span>
               ) : null}
+            </div>
+          ) : null}
+          {isRecurring ? (
+            <div className="flex items-center gap-1.5 text-[10px] font-medium text-slate-500">
+              <RefreshCcw className="h-3 w-3" />
+              <span>Repeats</span>
             </div>
           ) : null}
         </div>
