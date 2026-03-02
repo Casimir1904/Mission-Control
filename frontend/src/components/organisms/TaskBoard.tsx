@@ -40,6 +40,15 @@ type TaskBoardProps = {
 
 type ReviewBucket = "all" | "approval_needed" | "waiting_lead" | "blocked";
 
+type KeyboardNavigationState = {
+  /** ID of the task currently focused via keyboard navigation */
+  focusedTaskId: string | null;
+  /** Whether keyboard move mode is active (user pressed Enter/Space on a focused task) */
+  isMoveModeActive: boolean;
+  /** The column that is currently targeted for moving a task */
+  targetColumn: TaskStatus | null;
+};
+
 const columns: Array<{
   title: string;
   status: TaskStatus;
@@ -139,6 +148,14 @@ export const TaskBoard = memo(function TaskBoard({
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [activeColumn, setActiveColumn] = useState<TaskStatus | null>(null);
   const [reviewBucket, setReviewBucket] = useState<ReviewBucket>("all");
+
+  // Keyboard navigation state management
+  const [keyboardNav, setKeyboardNav] = useState<KeyboardNavigationState>({
+    focusedTaskId: null,
+    isMoveModeActive: false,
+    targetColumn: null,
+  });
+  const keyboardNavRef = useRef<HTMLDivElement | null>(null);
 
   const setCardRef = useCallback(
     (taskId: string) => (node: HTMLDivElement | null) => {
@@ -302,6 +319,278 @@ export const TaskBoard = memo(function TaskBoard({
     return buckets;
   }, [tasks]);
 
+  /**
+   * Get all visible task IDs in DOM order (top to bottom, left to right by column).
+   */
+  const getVisibleTaskIds = useCallback((): string[] => {
+    const ids: string[] = [];
+    for (const column of columns) {
+      const columnTasks = grouped[column.status] ?? [];
+      const filteredTasks =
+        column.status === "review" && reviewBucket !== "all"
+          ? columnTasks.filter((task) => {
+              if (reviewBucket === "blocked") return Boolean(task.is_blocked);
+              if (reviewBucket === "approval_needed")
+                return (
+                  (task.approvals_pending_count ?? 0) > 0 && !task.is_blocked
+                );
+              if (reviewBucket === "waiting_lead")
+                return (
+                  !task.is_blocked && (task.approvals_pending_count ?? 0) === 0
+                );
+              return true;
+            })
+          : columnTasks;
+      for (const task of filteredTasks) {
+        ids.push(task.id);
+      }
+    }
+    return ids;
+  }, [grouped, reviewBucket]);
+
+  /**
+   * Get the column status for a given task ID.
+   */
+  const getTaskColumn = useCallback(
+    (taskId: string): TaskStatus | null => {
+      const task = tasks.find((t) => t.id === taskId);
+      return task?.status ?? null;
+    },
+    [tasks],
+  );
+
+  /**
+   * Focus a task card by its ID and update keyboard navigation state.
+   */
+  const focusTask = useCallback((taskId: string | null) => {
+    setKeyboardNav((prev) => ({
+      ...prev,
+      focusedTaskId: taskId,
+    }));
+    if (taskId) {
+      const element = cardRefs.current.get(taskId);
+      if (element) {
+        element.focus();
+      }
+    }
+  }, []);
+
+  /**
+   * Activate move mode for the currently focused task.
+   */
+  const activateMoveMode = useCallback(() => {
+    if (!keyboardNav.focusedTaskId) return;
+    const taskColumn = getTaskColumn(keyboardNav.focusedTaskId);
+    setKeyboardNav((prev) => ({
+      ...prev,
+      isMoveModeActive: true,
+      targetColumn: taskColumn,
+    }));
+  }, [keyboardNav.focusedTaskId, getTaskColumn]);
+
+  /**
+   * Cancel move mode and return to normal navigation.
+   */
+  const cancelMoveMode = useCallback(() => {
+    setKeyboardNav((prev) => ({
+      ...prev,
+      isMoveModeActive: false,
+      targetColumn: null,
+    }));
+  }, []);
+
+  /**
+   * Commit the move operation when in move mode.
+   */
+  const commitMove = useCallback(() => {
+    if (
+      !keyboardNav.isMoveModeActive ||
+      !keyboardNav.focusedTaskId ||
+      !keyboardNav.targetColumn
+    ) {
+      return;
+    }
+    const currentColumn = getTaskColumn(keyboardNav.focusedTaskId);
+    if (currentColumn && currentColumn !== keyboardNav.targetColumn) {
+      onTaskMove?.(keyboardNav.focusedTaskId, keyboardNav.targetColumn);
+    }
+    setKeyboardNav((prev) => ({
+      ...prev,
+      isMoveModeActive: false,
+      targetColumn: null,
+    }));
+  }, [
+    keyboardNav.isMoveModeActive,
+    keyboardNav.focusedTaskId,
+    keyboardNav.targetColumn,
+    getTaskColumn,
+    onTaskMove,
+  ]);
+
+  /**
+   * Navigate to the next task (down/right arrow).
+   */
+  const navigateNext = useCallback(() => {
+    const visibleIds = getVisibleTaskIds();
+    if (visibleIds.length === 0) return;
+    const currentIndex = keyboardNav.focusedTaskId
+      ? visibleIds.indexOf(keyboardNav.focusedTaskId)
+      : -1;
+    const nextIndex =
+      currentIndex >= 0 && currentIndex < visibleIds.length - 1
+        ? currentIndex + 1
+        : 0;
+    focusTask(visibleIds[nextIndex]);
+  }, [getVisibleTaskIds, keyboardNav.focusedTaskId, focusTask]);
+
+  /**
+   * Navigate to the previous task (up/left arrow).
+   */
+  const navigatePrev = useCallback(() => {
+    const visibleIds = getVisibleTaskIds();
+    if (visibleIds.length === 0) return;
+    const currentIndex = keyboardNav.focusedTaskId
+      ? visibleIds.indexOf(keyboardNav.focusedTaskId)
+      : 1;
+    const prevIndex =
+      currentIndex > 0 ? currentIndex - 1 : visibleIds.length - 1;
+    focusTask(visibleIds[prevIndex]);
+  }, [getVisibleTaskIds, keyboardNav.focusedTaskId, focusTask]);
+
+  /**
+   * Navigate to the next column (right arrow in move mode, or column nav).
+   */
+  const navigateNextColumn = useCallback(() => {
+    if (keyboardNav.isMoveModeActive) {
+      const columnOrder: TaskStatus[] = [
+        "inbox",
+        "in_progress",
+        "review",
+        "done",
+      ];
+      const currentIndex = keyboardNav.targetColumn
+        ? columnOrder.indexOf(keyboardNav.targetColumn)
+        : -1;
+      const nextIndex =
+        currentIndex >= 0 && currentIndex < columnOrder.length - 1
+          ? currentIndex + 1
+          : 0;
+      setKeyboardNav((prev) => ({
+        ...prev,
+        targetColumn: columnOrder[nextIndex],
+      }));
+    }
+  }, [keyboardNav.isMoveModeActive, keyboardNav.targetColumn]);
+
+  /**
+   * Navigate to the previous column (left arrow in move mode).
+   */
+  const navigatePrevColumn = useCallback(() => {
+    if (keyboardNav.isMoveModeActive) {
+      const columnOrder: TaskStatus[] = [
+        "inbox",
+        "in_progress",
+        "review",
+        "done",
+      ];
+      const currentIndex = keyboardNav.targetColumn
+        ? columnOrder.indexOf(keyboardNav.targetColumn)
+        : 1;
+      const prevIndex =
+        currentIndex > 0 ? currentIndex - 1 : columnOrder.length - 1;
+      setKeyboardNav((prev) => ({
+        ...prev,
+        targetColumn: columnOrder[prevIndex],
+      }));
+    }
+  }, [keyboardNav.isMoveModeActive, keyboardNav.targetColumn]);
+
+  /**
+   * Handle keyboard events for the task board.
+   */
+  const handleBoardKeyDown = useCallback(
+    (event: React.KeyboardEvent) => {
+      if (readOnly) return;
+
+      switch (event.key) {
+        case "ArrowDown":
+        case "ArrowRight":
+          event.preventDefault();
+          if (keyboardNav.isMoveModeActive) {
+            navigateNextColumn();
+          } else {
+            navigateNext();
+          }
+          break;
+        case "ArrowUp":
+        case "ArrowLeft":
+          event.preventDefault();
+          if (keyboardNav.isMoveModeActive) {
+            navigatePrevColumn();
+          } else {
+            navigatePrev();
+          }
+          break;
+        case "Enter":
+        case " ":
+          event.preventDefault();
+          if (keyboardNav.isMoveModeActive) {
+            commitMove();
+          } else if (keyboardNav.focusedTaskId) {
+            activateMoveMode();
+          }
+          break;
+        case "Escape":
+          event.preventDefault();
+          if (keyboardNav.isMoveModeActive) {
+            cancelMoveMode();
+          }
+          break;
+      }
+    },
+    [
+      readOnly,
+      keyboardNav.isMoveModeActive,
+      keyboardNav.focusedTaskId,
+      navigateNext,
+      navigatePrev,
+      navigateNextColumn,
+      navigatePrevColumn,
+      activateMoveMode,
+      cancelMoveMode,
+      commitMove,
+    ],
+  );
+
+  /**
+   * Handle focus on a task card to update keyboard navigation state.
+   */
+  const handleTaskFocus = useCallback(
+    (taskId: string) => () => {
+      setKeyboardNav((prev) => ({
+        ...prev,
+        focusedTaskId: taskId,
+      }));
+    },
+    [],
+  );
+
+  /**
+   * Handle blur to clear focused state if moving outside the board.
+   */
+  const handleBoardBlur = useCallback((event: React.FocusEvent) => {
+    const relatedTarget = event.relatedTarget as Element | null;
+    const boardElement = boardRef.current;
+    if (boardElement && !boardElement.contains(relatedTarget)) {
+      setKeyboardNav((prev) => ({
+        ...prev,
+        focusedTaskId: null,
+        isMoveModeActive: false,
+        targetColumn: null,
+      }));
+    }
+  }, []);
+
   // Keep drag/drop state and payload handling centralized for column move interactions.
   const handleDragStart =
     (task: Task) => (event: React.DragEvent<HTMLDivElement>) => {
@@ -359,17 +648,44 @@ export const TaskBoard = memo(function TaskBoard({
     }
   };
 
+  // Announce keyboard move operations to screen readers
+  const getLiveRegionText = (): string | undefined => {
+    if (!keyboardNav.isMoveModeActive || !keyboardNav.focusedTaskId) {
+      return undefined;
+    }
+    const task = tasks.find((t) => t.id === keyboardNav.focusedTaskId);
+    if (!task) return undefined;
+    const targetColumnName =
+      keyboardNav.targetColumn
+        ? columns.find((c) => c.status === keyboardNav.targetColumn)?.title
+        : undefined;
+    return targetColumnName
+      ? `Moving "${task.title}" to ${targetColumnName}. Press Enter to confirm or Escape to cancel.`
+      : `Move mode active for "${task.title}". Use arrow keys to select target column.`;
+  };
+
   return (
     <div
       ref={boardRef}
       data-testid="task-board"
+      tabIndex={0}
+      role="region"
+      aria-label="Task board"
+      onKeyDown={handleBoardKeyDown}
+      onBlur={handleBoardBlur}
       className={cn(
         // Mobile-first: stack columns vertically to avoid horizontal scrolling.
         "grid grid-cols-1 gap-4 overflow-x-hidden pb-6",
         // Desktop/tablet: switch back to horizontally scrollable kanban columns.
         "sm:grid-flow-col sm:auto-cols-[minmax(260px,320px)] sm:grid-cols-none sm:overflow-x-auto",
+        // Focus styles for keyboard navigation
+        "focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2",
       )}
     >
+      {/* Live region for keyboard move announcements */}
+      <div className="sr-only" aria-live="polite" aria-atomic="true">
+        {getLiveRegionText()}
+      </div>
       {columns.map((column) => {
         const columnTasks = grouped[column.status] ?? [];
         // Derive review tab counts and the active subset from one canonical task list.
@@ -414,9 +730,16 @@ export const TaskBoard = memo(function TaskBoard({
               })
             : columnTasks;
 
+        const isTargetColumn =
+          keyboardNav.isMoveModeActive &&
+          keyboardNav.targetColumn === column.status;
+
         return (
           <div
             key={column.title}
+            role="list"
+            aria-label={`${column.title} column`}
+            aria-current={isTargetColumn ? "true" : undefined}
             className={cn(
               // On mobile, columns are stacked, so avoid forcing tall fixed heights.
               "kanban-column min-h-0",
@@ -425,6 +748,8 @@ export const TaskBoard = memo(function TaskBoard({
               activeColumn === column.status &&
                 !readOnly &&
                 "ring-2 ring-slate-200",
+              // Highlight target column during keyboard move mode
+              isTargetColumn && "ring-2 ring-indigo-400 bg-indigo-50/30",
             )}
             onDrop={readOnly ? undefined : handleDrop(column.status)}
             onDragOver={readOnly ? undefined : handleDragOver(column.status)}
@@ -491,6 +816,11 @@ export const TaskBoard = memo(function TaskBoard({
               <div className="space-y-3">
                 {filteredTasks.map((task) => {
                   const dueState = resolveDueState(task);
+                  const isFocused = keyboardNav.focusedTaskId === task.id;
+                  const isKeyboardMoving =
+                    isFocused &&
+                    keyboardNav.isMoveModeActive &&
+                    keyboardNav.targetColumn !== null;
                   return (
                     <div key={task.id} ref={setCardRef(task.id)}>
                       <TaskCard
@@ -505,8 +835,12 @@ export const TaskBoard = memo(function TaskBoard({
                         isBlocked={task.is_blocked}
                         blockedByCount={task.blocked_by_task_ids?.length ?? 0}
                         onClick={() => onTaskSelect?.(task)}
+                        onFocus={handleTaskFocus(task.id)}
                         draggable={!readOnly && !task.is_blocked}
                         isDragging={draggingId === task.id}
+                        isKeyboardFocused={isFocused}
+                        isKeyboardMoving={isKeyboardMoving}
+                        keyboardTargetColumn={keyboardNav.targetColumn}
                         onDragStart={
                           readOnly ? undefined : handleDragStart(task)
                         }
