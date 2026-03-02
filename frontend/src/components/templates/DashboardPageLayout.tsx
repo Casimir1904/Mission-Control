@@ -31,6 +31,7 @@ type DashboardPageLayoutProps = {
   headerClassName?: string;
   contentClassName?: string;
   mainRef?: Ref<HTMLElement>;
+  breadcrumb?: ReactNode;
 };
 
 export function DashboardPageLayout({
@@ -46,6 +47,7 @@ export function DashboardPageLayout({
   headerClassName,
   contentClassName,
   mainRef,
+  breadcrumb,
 }: DashboardPageLayoutProps) {
   const showAdminOnlyNotice =
     typeof isAdmin === "boolean" && Boolean(adminOnlyMessage) && !isAdmin;
@@ -79,6 +81,9 @@ export function DashboardPageLayout({
               {headerActions ? (
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div>
+                    {breadcrumb ? (
+                      <div className="mb-2">{breadcrumb}</div>
+                    ) : null}
                     <h1 className="font-heading text-2xl font-semibold tracking-tight text-slate-900">
                       {title}
                     </h1>
@@ -92,6 +97,9 @@ export function DashboardPageLayout({
                 </div>
               ) : (
                 <div>
+                  {breadcrumb ? (
+                    <div className="mb-2">{breadcrumb}</div>
+                  ) : null}
                   <h1 className="font-heading text-2xl font-semibold tracking-tight text-slate-900">
                     {title}
                   </h1>

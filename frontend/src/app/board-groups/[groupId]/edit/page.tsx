@@ -24,10 +24,17 @@ import type {
   BoardRead,
 } from "@/api/generated/model";
 import { DashboardPageLayout } from "@/components/templates/DashboardPageLayout";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-
 const slugify = (value: string) =>
   value
     .toLowerCase()
@@ -277,6 +284,33 @@ export default function EditBoardGroupPage() {
     [baseGroup?.name],
   );
 
+  const breadcrumb = useMemo(
+    () => (
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink href="/board-groups">Board groups</BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            {baseGroup ? (
+              <BreadcrumbLink href={`/board-groups/${groupId ?? ""}`}>
+                {baseGroup.name}
+              </BreadcrumbLink>
+            ) : (
+              <BreadcrumbPage>…</BreadcrumbPage>
+            )}
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>Edit</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+    ),
+    [baseGroup, groupId],
+  );
+
   return (
     <DashboardPageLayout
       signedOut={{
@@ -285,6 +319,7 @@ export default function EditBoardGroupPage() {
       }}
       title={title}
       description="Update the shared context that connects boards in this group."
+      breadcrumb={breadcrumb}
     >
       <form
         onSubmit={handleSubmit}

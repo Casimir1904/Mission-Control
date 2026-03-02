@@ -29,6 +29,14 @@ import {
   type NormalizedCustomFieldFormValues,
 } from "@/components/custom-fields/custom-field-form-utils";
 import { useOrganizationMembership } from "@/lib/use-organization-membership";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 
 export default function EditCustomFieldPage() {
   const router = useRouter();
@@ -127,6 +135,25 @@ export default function EditCustomFieldPage() {
       isAdmin={isAdmin}
       adminOnlyMessage="Only organization owners and admins can manage custom fields."
       stickyHeader
+      breadcrumb={
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink href="/custom-fields">Custom fields</BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbLink href={`/custom-fields/${fieldId}`}>
+                {field?.label ?? "Custom field"}
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>Edit</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      }
     >
       {customFieldsQuery.isLoading ? (
         <div className="max-w-3xl rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500 shadow-sm">
