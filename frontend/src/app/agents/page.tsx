@@ -5,8 +5,9 @@ export const dynamic = "force-dynamic";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import type { RowSelectionState } from "@tanstack/react-table";
 import { useAuth } from "@/auth/clerk";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { AgentsTable } from "@/components/agents/AgentsTable";
 import { DashboardPageLayout } from "@/components/templates/DashboardPageLayout";
@@ -16,6 +17,7 @@ import { ConfirmActionDialog } from "@/components/ui/confirm-action-dialog";
 import { ApiError } from "@/api/mutator";
 import {
   type listAgentsApiV1AgentsGetResponse,
+  deleteAgentApiV1AgentsAgentIdDelete,
   getListAgentsApiV1AgentsGetQueryKey,
   useDeleteAgentApiV1AgentsAgentIdDelete,
   useListAgentsApiV1AgentsGet,
@@ -27,6 +29,7 @@ import {
 } from "@/api/generated/boards/boards";
 import { type AgentRead } from "@/api/generated/model";
 import { createOptimisticListDeleteMutation } from "@/lib/list-delete";
+import { createOptimisticListBulkDeleteMutation } from "@/lib/list-bulk-operations";
 import { useOrganizationMembership } from "@/lib/use-organization-membership";
 import { useUrlSorting } from "@/lib/use-url-sorting";
 
@@ -52,6 +55,8 @@ export default function AgentsPage() {
   });
 
   const [deleteTarget, setDeleteTarget] = useState<AgentRead | null>(null);
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
 
   const boardsKey = getListBoardsApiV1BoardsGetQueryKey();
   const agentsKey = getListAgentsApiV1AgentsGetQueryKey();
@@ -93,6 +98,10 @@ export default function AgentsPage() {
     [agentsQuery.data],
   );
 
+  const selectedAgentIds = useMemo(() => {
+    return Object.keys(rowSelection);
+  }, [rowSelection]);
+
   const deleteMutation = useDeleteAgentApiV1AgentsAgentIdDelete<
     ApiError,
     { previous?: listAgentsApiV1AgentsGetResponse }
@@ -119,6 +128,39 @@ export default function AgentsPage() {
   const handleDelete = () => {
     if (!deleteTarget) return;
     deleteMutation.mutate({ agentId: deleteTarget.id });
+  };
+
+  const bulkDeleteMutation = useMutation<
+    void,
+    ApiError,
+    { agentIds: string[] },
+    { previous?: listAgentsApiV1AgentsGetResponse }
+  >({
+    mutationFn: async ({ agentIds }) => {
+      await Promise.all(
+        agentIds.map((agentId) => deleteAgentApiV1AgentsAgentIdDelete(agentId)),
+      );
+    },
+    ...createOptimisticListBulkDeleteMutation<
+      AgentRead,
+      listAgentsApiV1AgentsGetResponse,
+      { agentIds: string[] }
+    >({
+      queryClient,
+      queryKey: agentsKey,
+      getItemId: (agent) => agent.id,
+      getDeleteIds: ({ agentIds }) => agentIds,
+      onSuccess: () => {
+        setRowSelection({});
+        setIsBulkDeleteOpen(false);
+      },
+      invalidateQueryKeys: [agentsKey, boardsKey],
+    }),
+  });
+
+  const handleBulkDelete = () => {
+    if (selectedAgentIds.length === 0) return;
+    bulkDeleteMutation.mutate({ agentIds: selectedAgentIds });
   };
 
   return (
@@ -152,6 +194,10 @@ export default function AgentsPage() {
             showActions
             stickyHeader
             onDelete={setDeleteTarget}
+            enableRowSelection
+            rowSelection={rowSelection}
+            onSelectionChange={setRowSelection}
+            getRowId={(agent) => agent.id}
             emptyState={{
               title: "No agents yet",
               description:
@@ -186,6 +232,27 @@ export default function AgentsPage() {
         errorMessage={deleteMutation.error?.message}
         onConfirm={handleDelete}
         isConfirming={deleteMutation.isPending}
+      />
+
+      <ConfirmActionDialog
+        open={isBulkDeleteOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsBulkDeleteOpen(false);
+          }
+        }}
+        ariaLabel="Delete agents"
+        title="Delete agents"
+        description={
+          <>
+            This will remove {selectedAgentIds.length} selected agent
+            {selectedAgentIds.length === 1 ? "" : "s"}. This action cannot be
+            undone.
+          </>
+        }
+        errorMessage={bulkDeleteMutation.error?.message}
+        onConfirm={handleBulkDelete}
+        isConfirming={bulkDeleteMutation.isPending}
       />
     </>
   );
