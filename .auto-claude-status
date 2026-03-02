@@ -3,13 +3,13 @@
   "spec": "005-bulk-operations-for-list-views",
   "state": "building",
   "subtasks": {
-    "completed": 5,
+    "completed": 9,
     "total": 13,
     "in_progress": 1,
     "failed": 0
   },
   "phase": {
-    "current": "Bulk Action Toolbar",
+    "current": "Backend Bulk Endpoints",
     "id": null,
     "total": 2
   },
@@ -18,8 +18,8 @@
     "max": 1
   },
   "session": {
-    "number": 7,
+    "number": 11,
     "started_at": "2026-03-02T02:02:50.092823"
   },
-  "last_update": "2026-03-02T03:10:18.078597"
+  "last_update": "2026-03-02T03:29:52.280949"
 }
