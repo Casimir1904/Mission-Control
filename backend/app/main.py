@@ -42,6 +42,7 @@ from app.api.users import router as users_router
 from app.core.config import settings
 from app.core.error_handling import install_error_handling
 from app.core.logging import configure_logging, get_logger
+from app.core.request_size_limit import RequestSizeLimitMiddleware
 from app.core.security_headers import SecurityHeadersMiddleware
 from app.db.session import init_db
 from app.schemas.health import HealthStatusResponse
@@ -483,6 +484,10 @@ app.add_middleware(
     x_frame_options=settings.security_header_x_frame_options,
     referrer_policy=settings.security_header_referrer_policy,
     permissions_policy=settings.security_header_permissions_policy,
+)
+app.add_middleware(
+    RequestSizeLimitMiddleware,
+    max_payload_size_bytes=settings.max_payload_size_bytes,
 )
 install_error_handling(app)
 
