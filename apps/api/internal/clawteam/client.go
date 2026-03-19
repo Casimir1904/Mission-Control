@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os/exec"
+	"strings"
 	"time"
 )
 
@@ -165,14 +166,20 @@ func (c *Client) ListTemplates(ctx context.Context) ([]TeamTemplate, error) {
 // CreateRun launches a team from a template using `clawteam launch`.
 func (c *Client) CreateRun(ctx context.Context, req CreateRunRequest) (*TeamRun, error) {
 	// Launch the team via CLI. The launch command creates the team and
-	// spawns all agents in tmux.
-	args := []string{
-		"source", "~/clawteam-env/bin/activate", "&&",
-		"clawteam", "launch", req.TeamName,
-		"-g", req.Task,
-		"--command", "openclaw",
-	}
-	out, err := c.ssh(ctx, args...)
+	// spawns all agents in tmux. We build a single shell string with
+	// proper quoting to avoid argument splitting.
+	remoteCmd := fmt.Sprintf(
+		"source ~/clawteam-env/bin/activate && clawteam launch %s -g %s --command openclaw",
+		shellQuote(req.TeamName),
+		shellQuote(req.Task),
+	)
+	cmd := exec.CommandContext(ctx, "ssh",
+		"-o", "StrictHostKeyChecking=no",
+		"-o", "ConnectTimeout=10",
+		c.sshHost,
+		remoteCmd,
+	)
+	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("launch team: %w: %s", err, string(out))
 	}
@@ -340,24 +347,10 @@ func (c *Client) CancelRun(ctx context.Context, id string) error {
 	return nil
 }
 
-// ssh runs a command on the remote host via SSH.
-func (c *Client) ssh(ctx context.Context, args ...string) ([]byte, error) {
-	// Build the remote command as a single shell string.
-	remoteCmd := ""
-	for i, a := range args {
-		if i > 0 {
-			remoteCmd += " "
-		}
-		remoteCmd += a
-	}
-
-	cmd := exec.CommandContext(ctx, "ssh",
-		"-o", "StrictHostKeyChecking=no",
-		"-o", "ConnectTimeout=10",
-		c.sshHost,
-		remoteCmd,
-	)
-	return cmd.CombinedOutput()
+// shellQuote wraps a string in single quotes for safe shell interpolation.
+func shellQuote(s string) string {
+	// Replace single quotes with '\'' (end quote, escaped quote, start quote).
+	return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'"
 }
 
 // sshJSON runs a command via SSH and decodes the JSON output.
