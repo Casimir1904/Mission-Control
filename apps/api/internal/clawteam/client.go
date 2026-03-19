@@ -169,7 +169,7 @@ func (c *Client) CreateRun(ctx context.Context, req CreateRunRequest) (*TeamRun,
 	// spawns all agents in tmux. We build a single shell string with
 	// proper quoting to avoid argument splitting.
 	remoteCmd := fmt.Sprintf(
-		"source ~/clawteam-env/bin/activate && clawteam launch %s -g %s",
+		"source ~/clawteam-env/bin/activate && clawteam launch %s -g %s --no-workspace",
 		shellQuote(req.TeamName),
 		shellQuote(req.Task),
 	)
