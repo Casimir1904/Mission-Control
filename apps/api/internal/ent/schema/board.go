@@ -54,6 +54,10 @@ func (Board) Fields() []ent.Field {
 			Optional().
 			Nillable().
 			Comment("Designated lead agent for orchestration on this board"),
+		field.Enum("orchestration_mode").
+			Values("manual", "lead_agent", "clawteam").
+			Default("manual").
+			Comment("Orchestration mode: manual, lead_agent, or clawteam"),
 	}
 }
 

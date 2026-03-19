@@ -50,6 +50,9 @@ func (s *boardService) Create(ctx context.Context, input dto.CreateBoardInput) (
 	if input.LeadAgentID != nil {
 		builder.SetLeadAgentID(*input.LeadAgentID)
 	}
+	if input.OrchestrationMode != "" {
+		builder.SetOrchestrationMode(board.OrchestrationMode(input.OrchestrationMode))
+	}
 
 	b, err := builder.Save(ctx)
 	if err != nil {
@@ -130,6 +133,9 @@ func (s *boardService) Update(ctx context.Context, id uuid.UUID, input dto.Updat
 	if input.LeadAgentID != nil {
 		builder.SetLeadAgentID(*input.LeadAgentID)
 	}
+	if input.OrchestrationMode != nil {
+		builder.SetOrchestrationMode(board.OrchestrationMode(*input.OrchestrationMode))
+	}
 
 	b, err := builder.Save(ctx)
 	if err != nil {
@@ -172,16 +178,17 @@ func (s *boardService) Archive(ctx context.Context, id uuid.UUID) (*dto.BoardOut
 
 func (s *boardService) boardToOutput(ctx context.Context, b *generated.Board) (*dto.BoardOutput, error) {
 	out := &dto.BoardOutput{
-		ID:             b.ID,
-		Name:           b.Name,
-		Description:    b.Description,
-		Status:         string(b.Status),
-		MaxAgents:      b.MaxAgents,
-		OrganizationID: b.OrganizationID,
-		BoardGroupID:   b.BoardGroupID,
-		LeadAgentID:    b.LeadAgentID,
-		CreatedAt:      b.CreatedAt,
-		UpdatedAt:      b.UpdatedAt,
+		ID:                b.ID,
+		Name:              b.Name,
+		Description:       b.Description,
+		Status:            string(b.Status),
+		MaxAgents:         b.MaxAgents,
+		OrganizationID:    b.OrganizationID,
+		BoardGroupID:      b.BoardGroupID,
+		LeadAgentID:       b.LeadAgentID,
+		OrchestrationMode: string(b.OrchestrationMode),
+		CreatedAt:         b.CreatedAt,
+		UpdatedAt:         b.UpdatedAt,
 	}
 
 	// Agent count from eager-loaded edges or a separate query.

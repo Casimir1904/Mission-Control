@@ -18,11 +18,14 @@ export interface OrganizationMember {
   joined_at: string;
 }
 
+export type OrchestrationMode = "manual" | "lead_agent" | "clawteam";
+
 export interface Board {
   id: string;
   name: string;
   description: string;
   status: "active" | "archived";
+  orchestration_mode: OrchestrationMode;
   organization_id: string;
   board_group_id?: string;
   lead_agent_id?: string;
@@ -465,4 +468,45 @@ export interface CreateDeliverableInput {
   name: string;
   content: string;
   mime_type?: string;
+}
+
+// ── Phase 6: ClawTeam Integration ──
+
+export interface TeamTemplate {
+  name: string;
+  description: string;
+  roles: string[];
+  agent_count: number;
+}
+
+export interface TeamRun {
+  id: string;
+  team_name: string;
+  task: string;
+  status: "pending" | "running" | "completed" | "failed";
+  sub_tasks: SubTask[];
+  result?: string;
+  board_id?: string;
+  started_at?: string;
+  ended_at?: string;
+}
+
+export interface SubTask {
+  id: string;
+  title: string;
+  agent: string;
+  status: string;
+  depends_on?: string[];
+  result?: string;
+}
+
+export interface CreateTeamRunInput {
+  team_name: string;
+  task: string;
+  board_id?: string;
+}
+
+export interface TeamRunListParams {
+  status?: string;
+  team_name?: string;
 }

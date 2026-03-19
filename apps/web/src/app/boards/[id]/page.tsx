@@ -4,7 +4,7 @@ import { use, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bot, ListTodo, Brain, Settings, Plus, MoreHorizontal, Trash2, Archive, MessageCircle, Crown } from "lucide-react";
+import { Bot, ListTodo, Brain, Settings, Plus, MoreHorizontal, Trash2, Archive, MessageCircle, Crown, Users, Play } from "lucide-react";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
@@ -38,7 +38,9 @@ import {
   useAgentsByBoard,
   useDeleteBoard,
   useBoardSessions,
+  useTeamRuns,
 } from "@/lib/api/hooks";
+import { Card, CardContent } from "@/components/ui/card";
 import type { Agent, TaskStatus } from "@/lib/api/types";
 
 export default function BoardDetailPage({
@@ -52,6 +54,8 @@ export default function BoardDetailPage({
   const { data: board, isLoading: boardLoading } = useBoard(id);
   const { data: tasksData, isLoading: tasksLoading } = useTasksByBoard(id);
   const { data: agentsData, isLoading: agentsLoading } = useAgentsByBoard(id);
+  const { data: teamRuns } = useTeamRuns();
+  const boardTeamRuns = (teamRuns ?? []).filter((r) => r.board_id === id);
   const { data: chatSessions = [] } = useBoardSessions(id);
   const deleteBoard = useDeleteBoard();
 
@@ -205,6 +209,15 @@ export default function BoardDetailPage({
             <Brain size={14} className="mr-space-1" aria-hidden="true" />
             Memory
           </TabsTrigger>
+          <TabsTrigger value="teams">
+            <Users size={14} className="mr-space-1" aria-hidden="true" />
+            Teams
+            {boardTeamRuns.length > 0 && (
+              <Badge variant="neutral" className="ml-space-1 h-4 min-w-[16px] px-1 text-[10px]">
+                {boardTeamRuns.length}
+              </Badge>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="settings">
             <Settings size={14} className="mr-space-1" aria-hidden="true" />
             Settings
@@ -265,6 +278,48 @@ export default function BoardDetailPage({
             title="Board memory"
             description="Board memory and context will be available here in a future update."
           />
+        </TabsContent>
+
+        {/* Teams tab */}
+        <TabsContent value="teams">
+          {boardTeamRuns.length === 0 ? (
+            <EmptyState
+              icon={Users}
+              title="No team runs"
+              description="Start a team run from the Teams page to see activity here."
+              action={
+                <Button asChild>
+                  <Link href={"/teams/new" as never}>
+                    <Play size={16} aria-hidden="true" />
+                    Start Run
+                  </Link>
+                </Button>
+              }
+            />
+          ) : (
+            <div className="space-y-space-2">
+              {boardTeamRuns.map((run) => (
+                <Card
+                  key={run.id}
+                  className="cursor-pointer hover:border-border-default"
+                  onClick={() => router.push(`/teams/runs/${run.id}` as never)}
+                >
+                  <CardContent className="flex items-center justify-between py-space-3">
+                    <div className="flex items-center gap-space-3">
+                      <Badge variant={run.status === "completed" ? "healthy" : run.status === "running" ? "info" : run.status === "failed" ? "critical" : "neutral"}>
+                        {run.status}
+                      </Badge>
+                      <span className="text-sm font-medium">{run.team_name}</span>
+                      <span className="max-w-xs truncate text-sm text-text-secondary">{run.task}</span>
+                    </div>
+                    <span className="font-mono text-xs text-text-muted tabular-nums">
+                      {run.sub_tasks?.length ?? 0} sub-tasks
+                    </span>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </TabsContent>
 
         {/* Settings tab */}

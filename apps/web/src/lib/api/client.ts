@@ -51,6 +51,10 @@ import type {
   DispatchStatus,
   Deliverable,
   CreateDeliverableInput,
+  TeamTemplate,
+  TeamRun,
+  CreateTeamRunInput,
+  TeamRunListParams,
 } from "./types";
 
 export { ApiError };
@@ -444,4 +448,31 @@ export const dispatchApi = {
 
   getStatus: (taskId: string) =>
     apiFetch<DispatchStatus>(`/api/v1/tasks/${taskId}/dispatch`),
+};
+
+// ── Teams (ClawTeam) ──
+
+export const teamsApi = {
+  listTemplates: () =>
+    apiFetch<TeamTemplate[]>("/api/v1/teams/templates"),
+
+  createRun: (data: CreateTeamRunInput) =>
+    apiFetch<TeamRun>("/api/v1/teams/runs", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  listRuns: (params?: TeamRunListParams) =>
+    apiFetch<TeamRun[]>("/api/v1/teams/runs", {
+      params: params ? toParams({ ...params }) : undefined,
+    }),
+
+  getRun: (id: string) =>
+    apiFetch<TeamRun>(`/api/v1/teams/runs/${id}`),
+
+  cancelRun: (id: string) =>
+    apiFetch<void>(`/api/v1/teams/runs/${id}`, { method: "DELETE" }),
+
+  syncRun: (id: string) =>
+    apiFetch<TeamRun>(`/api/v1/teams/runs/${id}/sync`, { method: "POST" }),
 };

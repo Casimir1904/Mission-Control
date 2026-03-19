@@ -23,6 +23,7 @@ import {
   chatApi,
   dispatchApi,
   deliverablesApi,
+  teamsApi,
   ApiError,
 } from "./client";
 import type {
@@ -54,6 +55,8 @@ import type {
   CreateChatSessionInput,
   SendMessageInput,
   CreateDeliverableInput,
+  CreateTeamRunInput,
+  TeamRunListParams,
 } from "./types";
 
 // ── Query Keys ──
@@ -141,6 +144,12 @@ export const queryKeys = {
     all: ["deliverables"] as const,
     byTask: (taskId: string) => ["deliverables", "task", taskId] as const,
     detail: (id: string) => ["deliverables", id] as const,
+  },
+  teams: {
+    all: ["teams"] as const,
+    templates: ["teams", "templates"] as const,
+    runs: (params?: TeamRunListParams) => ["teams", "runs", params] as const,
+    run: (id: string) => ["teams", "runs", id] as const,
   },
 };
 
@@ -1204,6 +1213,101 @@ export function useDeleteDeliverable() {
       addToast({
         variant: "error",
         message: "Failed to delete deliverable",
+        description: getErrorMessage(error),
+      });
+    },
+  });
+}
+
+// ── Teams (ClawTeam) ──
+
+export function useTeamTemplates() {
+  return useQuery({
+    queryKey: queryKeys.teams.templates,
+    queryFn: () => teamsApi.listTemplates(),
+    retry: 1,
+    meta: { suppressErrors: true },
+  });
+}
+
+export function useTeamRuns(params?: TeamRunListParams) {
+  return useQuery({
+    queryKey: queryKeys.teams.runs(params),
+    queryFn: () => teamsApi.listRuns(params),
+    retry: 1,
+    meta: { suppressErrors: true },
+  });
+}
+
+export function useTeamRun(id: string) {
+  return useQuery({
+    queryKey: queryKeys.teams.run(id),
+    queryFn: () => teamsApi.getRun(id),
+    enabled: !!id,
+    refetchInterval: 5_000, // Poll while viewing
+  });
+}
+
+export function useCreateTeamRun() {
+  const queryClient = useQueryClient();
+  const { addToast } = useToast();
+
+  return useMutation({
+    mutationFn: (data: CreateTeamRunInput) => teamsApi.createRun(data),
+    onSuccess: (run) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.teams.all });
+      addToast({
+        variant: "success",
+        message: `Team run started: ${run.team_name}`,
+      });
+    },
+    onError: (error) => {
+      addToast({
+        variant: "error",
+        message: "Failed to start team run",
+        description: getErrorMessage(error),
+      });
+    },
+  });
+}
+
+export function useCancelTeamRun() {
+  const queryClient = useQueryClient();
+  const { addToast } = useToast();
+
+  return useMutation({
+    mutationFn: (id: string) => teamsApi.cancelRun(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.teams.all });
+      addToast({ variant: "success", message: "Team run cancelled" });
+    },
+    onError: (error) => {
+      addToast({
+        variant: "error",
+        message: "Failed to cancel team run",
+        description: getErrorMessage(error),
+      });
+    },
+  });
+}
+
+export function useSyncTeamRun() {
+  const queryClient = useQueryClient();
+  const { addToast } = useToast();
+
+  return useMutation({
+    mutationFn: (id: string) => teamsApi.syncRun(id),
+    onSuccess: (run) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.teams.all });
+      addToast({
+        variant: "success",
+        message: `Run synced: ${run.status}`,
+      });
+    },
+    onError: (error) => {
+      addToast({
+        variant: "error",
+        message: "Failed to sync team run",
         description: getErrorMessage(error),
       });
     },
