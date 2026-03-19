@@ -14,7 +14,7 @@ import {
   useTeamTemplates,
   useCreateTeam,
   useGateways,
-  useCurrentOrganization,
+  useOrganizations,
   useAvailableModels,
 } from "@/lib/api/hooks";
 import type { AgentModelOverride } from "@/lib/api/types";
@@ -35,8 +35,10 @@ function NewTeamPageInner() {
   const { data: templates, isLoading: templatesLoading } = useTeamTemplates();
   const { data: models } = useAvailableModels();
   const { data: gatewaysData } = useGateways();
-  const { data: org } = useCurrentOrganization();
+  const { data: orgsData } = useOrganizations();
   const createTeam = useCreateTeam();
+
+  const org = orgsData?.[0];
 
   const [selectedTemplate, setSelectedTemplate] = useState(preselected);
   const [boardName, setBoardName] = useState("");
