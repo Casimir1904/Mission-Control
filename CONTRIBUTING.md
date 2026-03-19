@@ -1,80 +1,126 @@
-# Contributing to OpenClaw Mission Control
+# Contributing to Mission Control
 
-Thanks for your interest in improving Mission Control.
+Thank you for your interest in contributing to Mission Control! This guide will help you get started.
 
-This repo welcomes contributions in three broad categories:
+## Prerequisites
 
-- **Issues**: bug reports, feature requests, and design discussions
-- **Documentation**: improvements to clarity, correctness, onboarding, and runbooks
-- **Code**: fixes, features, tests, and refactors
+- **Go** 1.23+
+- **Node.js** 20+
+- **Docker** and **Docker Compose**
+- **golangci-lint** (for Go linting)
 
-## Where to start
+## Getting Started
 
-- Docs landing page: [Docs landing](./docs/README.md)
-- Development workflow: [Development workflow](./docs/03-development.md)
-- Testing guide: [Testing guide](./docs/testing/README.md)
+1. **Clone the repository**
 
-## Filing issues
+   ```bash
+   git clone https://github.com/mission-control/mission-control.git
+   cd mission-control
+   ```
 
-When opening an issue, please include:
+2. **Copy the environment file**
 
-- What you expected vs what happened
-- Steps to reproduce (commands, env vars, links)
-- Logs and screenshots where helpful
-- Your environment (OS, Docker version, Node/Python versions)
+   ```bash
+   cp .env.example .env
+   ```
 
-## Pull requests
+3. **Start infrastructure services**
 
-### Branching hygiene (required)
+   ```bash
+   docker compose up postgres redis nats -d
+   ```
 
-Create feature branches from the latest `origin/master` to avoid unrelated commits in PRs:
+4. **Start the API server**
+
+   ```bash
+   cd apps/api
+   go run ./cmd/server
+   ```
+
+5. **Start the frontend**
+
+   ```bash
+   cd apps/web
+   npm install
+   npm run dev
+   ```
+
+   The frontend will be available at [http://localhost:3000](http://localhost:3000).
+
+## Code Style
+
+### Go
+
+- We use **golangci-lint** with a strict configuration. Run it before committing:
+
+  ```bash
+  cd apps/api
+  golangci-lint run
+  ```
+
+- Use `slog` for all logging (never `fmt.Print` or `log.Print`).
+- Wrap errors with `fmt.Errorf("context: %w", err)`.
+- Follow standard Go project layout conventions.
+
+### TypeScript / Frontend
+
+- **ESLint** and **Prettier** enforce consistent style:
+
+  ```bash
+  cd apps/web
+  npm run lint
+  ```
+
+- Use `type` imports where possible (`import type { Foo } from ...`).
+- Prefer named exports over default exports.
+
+## Testing
+
+### Go Tests
 
 ```bash
-git fetch origin
-git checkout master
-git reset --hard origin/master
-git checkout -b <branch-name>
+cd apps/api
+go test -race ./...
 ```
 
-If you accidentally based your branch off another feature branch, fix it by cherry-picking the intended commits onto a clean branch and force-pushing the corrected branch (or opening a new PR).
+Tests use **testcontainers-go** to spin up real PostgreSQL instances. No mocks or SQLite substitutes.
 
-### Expectations
-
-- Keep PRs **small and focused** when possible.
-- Include a clear description of the change and why it’s needed.
-- Add/adjust tests when behavior changes.
-- Update docs when contributor-facing or operator-facing behavior changes.
-
-### Local checks
-
-From repo root, the closest “CI parity” command is:
+### Frontend Tests
 
 ```bash
-make check
+cd apps/web
+npm run test
 ```
 
-If you’re iterating on a specific area, the Makefile also provides targeted commands (lint, typecheck, unit tests, etc.). See `make help`.
+We use **Vitest** with **React Testing Library**.
 
-## Docs contribution guidelines
+### Running All Tests via Turborepo
 
-- The numbered pages under `docs/` are **entrypoints**. Prefer linking to deeper pages instead of duplicating large blocks of content.
-- Use concise language and concrete examples.
-- When documenting operational behavior, call out risk areas (secrets, data loss, migrations).
+```bash
+# From the repository root
+npm run test
+```
 
-## Security and vulnerability reporting
+## Pull Request Process
 
-If you believe you’ve found a security vulnerability:
+1. **Branch off `main`** -- create a descriptive branch name (e.g., `feat/agent-dashboard`, `fix/websocket-reconnect`).
 
-- **Do not** open a public issue.
-- Prefer GitHub’s private reporting flow:
-  - https://github.com/abhi1693/openclaw-mission-control/security/advisories/new
+2. **Conventional commits preferred** -- use prefixes like `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`.
 
-If that’s not available in your environment, contact the maintainers privately.
+3. **Keep PRs focused** -- one feature or fix per pull request. Split large changes into stacked PRs if needed.
 
-## Code of conduct
+4. **Ensure CI passes** -- all lint, test, and build checks must pass before merge.
 
-If this repository adopts a Code of Conduct, we will link it here.
+5. **Fill out the PR template** -- describe the change, link to relevant issues, and include screenshots for UI changes.
 
-## License
+## Architecture Overview
 
-By contributing, you agree that your contributions will be licensed under the MIT License. See [`LICENSE`](./LICENSE).
+For a detailed overview of the system architecture, see:
+
+- [`docs/`](./docs/) -- technical documentation
+- [`CLAUDE.md`](./CLAUDE.md) -- project context for AI assistants
+- [`DESIGN.md`](./DESIGN.md) -- "Flight Console" design system
+
+## Questions?
+
+Open a [GitHub Discussion](https://github.com/mission-control/mission-control/discussions) or file an issue. We are happy to help!

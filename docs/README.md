@@ -1,20 +1,30 @@
-# Mission Control docs
+# Mission Control Documentation
 
-This folder is the starting point for Mission Control documentation.
+> Operations center for AI agents. Self-hosted via Docker Compose.
 
-## Sections
+## Getting Started
 
-- [Development workflow](./03-development.md)
-- [Testing guide](./testing/README.md)
-- [Coverage policy](./coverage-policy.md)
-- [Deployment](./deployment/README.md)
-- [Production notes](./production/README.md)
-- [Troubleshooting](./troubleshooting/README.md)
-- [Gateway agent provisioning and check-in troubleshooting](./troubleshooting/gateway-agent-provisioning.md)
-- [Gateway WebSocket protocol](./openclaw_gateway_ws.md)
-- [OpenClaw baseline configuration](./openclaw_baseline_config.md)
+- **[Getting Started](getting-started.md)** -- Install, configure, and run Mission Control in under 10 minutes.
 
-## Status
+## Core Concepts
 
-These pages are minimal placeholders so repo-relative links stay healthy. The actual docs
-information architecture will be defined in the Docs overhaul tasks.
+- **[Architecture](architecture.md)** -- System overview, tech stack, data flow, and component boundaries.
+- **[Configuration](configuration.md)** -- Every environment variable, with defaults and examples.
+- **[Gateways](gateways.md)** -- Connect Mission Control to OpenClaw instances and manage AI agents remotely.
+
+## Reference
+
+- **[API Reference](api-reference.md)** -- REST endpoints, authentication, request/response examples.
+- **[Design System](design-system.md)** -- "Flight Console" identity, color palette, typography, component patterns.
+
+## Operations
+
+- **[Deployment](deployment/README.md)** -- Docker Compose, production hardening, Unraid, backups, monitoring.
+- **[Development](development.md)** -- Local setup, testing, code style, adding features.
+
+## Additional Resources
+
+- [OpenClaw Integration Guide](openclaw-integration.md) -- Detailed WebSocket RPC protocol and gateway methods.
+- [OpenClaw Instance Reference](openclaw-instance.md) -- Example instance configuration and agent inventory.
+- [CONTRIBUTING.md](../CONTRIBUTING.md) -- How to contribute to the project.
+- [DESIGN.md](../DESIGN.md) -- Full design system specification.

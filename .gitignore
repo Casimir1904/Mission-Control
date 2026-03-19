@@ -1,39 +1,56 @@
-# Python
-__pycache__/
-*.py[cod]
-
-# Node / Next
+# Dependencies
 node_modules/
-.next/
-*.tsbuildinfo
+.pnp.*
 
-# Env
+# Build outputs
+.next/
+out/
+dist/
+bin/
+*.exe
+
+# Go
+apps/api/internal/ent/generate.go
+apps/api/internal/ent/client.go
+apps/api/internal/ent/tx.go
+apps/api/internal/ent/mutation.go
+apps/api/internal/ent/runtime.go
+apps/api/internal/ent/enttest/
+apps/api/internal/ent/hook/
+apps/api/internal/ent/migrate/
+apps/api/internal/ent/predicate/
+apps/api/internal/ent/*_*.go
+
+# Environment
 .env
 .env.local
-
-# Credentials
-credentials.md
+.env.*.local
+!.env.example
 
 # IDE
 .idea/
-.runlogs/
+.vscode/
+*.swp
+*.swo
 
-# Worktrees
-.worktrees/
+# OS
+.DS_Store
+Thumbs.db
 
-# Accidental literal "~" directories (e.g. when a configured path contains "~" but isn't expanded)
-backend/~/
-backend/coverage.*
-backend/.coverage
-frontend/coverage
-backend/app/services/openclaw/.device-keys
+# Turbo
+.turbo/
 
-# Auto Claude data directory
+# Test
+coverage/
+*.out
+
+# Auto-claude (development tooling)
 .auto-claude/
 
-# Auto Claude generated files
-.auto-claude-security.json
-.auto-claude-status
-.claude_settings.json
-.security-key
+# Misc
+.worktrees/
+.runlogs/
 logs/security/
+*.tsbuildinfo
+credentials.md
+.gstack/
