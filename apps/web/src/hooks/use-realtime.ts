@@ -89,6 +89,23 @@ export function useRealtime(topics: string[]) {
       if (entityType === "gateway") {
         queryClient.invalidateQueries({ queryKey: queryKeys.gateways.all });
       }
+
+      // Phase 5: Chat
+      if (
+        event.event_type === "chat.message" ||
+        entityType === "chat"
+      ) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.chat.all });
+      }
+
+      // Phase 5: Dispatch
+      if (
+        event.event_type === "task.dispatched" ||
+        entityType === "dispatch"
+      ) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.dispatch.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
+      }
     },
     [queryClient]
   );

@@ -44,6 +44,13 @@ import type {
   UpdateGatewayInput,
   TestConnectionResult,
   SyncResult,
+  ChatSession,
+  ChatMessage,
+  SendMessageInput,
+  CreateChatSessionInput,
+  DispatchStatus,
+  Deliverable,
+  CreateDeliverableInput,
 } from "./types";
 
 export { ApiError };
@@ -363,4 +370,74 @@ export const gatewaysApi = {
     apiFetch<SyncResult>(`/api/v1/gateways/${id}/sync`, {
       method: "POST",
     }),
+};
+
+// ── Chat Sessions ──
+
+export const chatApi = {
+  createSession: (boardId: string, data?: CreateChatSessionInput) =>
+    apiFetch<ChatSession>(`/api/v1/boards/${boardId}/chat/sessions`, {
+      method: "POST",
+      body: JSON.stringify(data ?? {}),
+    }),
+
+  listSessions: (boardId: string) =>
+    apiFetch<ChatSession[]>(`/api/v1/boards/${boardId}/chat/sessions`),
+
+  sendMessage: (sessionKey: string, data: SendMessageInput) =>
+    apiFetch<ChatMessage>(
+      `/api/v1/chat/sessions/${sessionKey}/messages`,
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      }
+    ),
+
+  getMessages: (sessionKey: string) =>
+    apiFetch<ChatMessage[]>(
+      `/api/v1/chat/sessions/${sessionKey}/messages`
+    ),
+
+  abortGeneration: (sessionKey: string) =>
+    apiFetch<Record<string, never>>(
+      `/api/v1/chat/sessions/${sessionKey}/abort`,
+      { method: "POST" }
+    ),
+
+  endSession: (sessionKey: string) =>
+    apiFetch<Record<string, never>>(
+      `/api/v1/chat/sessions/${sessionKey}`,
+      { method: "DELETE" }
+    ),
+};
+
+// ── Deliverables ──
+
+export const deliverablesApi = {
+  list: (taskId: string) =>
+    apiFetch<Deliverable[]>(`/api/v1/tasks/${taskId}/deliverables`),
+
+  get: (id: string) =>
+    apiFetch<Deliverable>(`/api/v1/deliverables/${id}`),
+
+  create: (taskId: string, data: CreateDeliverableInput) =>
+    apiFetch<Deliverable>(`/api/v1/tasks/${taskId}/deliverables`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: string) =>
+    apiFetch<void>(`/api/v1/deliverables/${id}`, { method: "DELETE" }),
+};
+
+// ── Task Dispatch ──
+
+export const dispatchApi = {
+  dispatch: (taskId: string) =>
+    apiFetch<DispatchStatus>(`/api/v1/tasks/${taskId}/dispatch`, {
+      method: "POST",
+    }),
+
+  getStatus: (taskId: string) =>
+    apiFetch<DispatchStatus>(`/api/v1/tasks/${taskId}/dispatch`),
 };

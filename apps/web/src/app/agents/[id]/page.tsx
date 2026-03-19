@@ -1,9 +1,9 @@
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bot, Pencil, Trash2 } from "lucide-react";
+import { Bot, Pencil, Trash2, MessageCircle } from "lucide-react";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusDot } from "@/components/status/status-dot";
 import { EmptyState } from "@/components/status/empty-state";
+import { ChatPanel } from "@/components/chat/chat-panel";
 import { useAgent, useDeleteAgent } from "@/lib/api/hooks";
 import type { AgentStatus } from "@/lib/api/types";
 
@@ -48,6 +49,7 @@ export default function AgentDetailPage({
 }) {
   const { id } = use(params);
   const router = useRouter();
+  const [chatOpen, setChatOpen] = useState(false);
   const { data: agent, isLoading } = useAgent(id);
   const deleteAgent = useDeleteAgent();
 
@@ -100,6 +102,16 @@ export default function AgentDetailPage({
         ]}
         action={
           <div className="flex items-center gap-space-2">
+            {agent.gateway_id && agent.status === "online" && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setChatOpen(true)}
+              >
+                <MessageCircle size={14} aria-hidden="true" />
+                Chat
+              </Button>
+            )}
             <Button variant="outline" size="sm" asChild>
               <Link href={`/agents/${id}/edit` as never}>
                 <Pencil size={14} aria-hidden="true" />
@@ -207,6 +219,15 @@ export default function AgentDetailPage({
           </CardContent>
         </Card>
       </div>
+
+      {agent.board_id && (
+        <ChatPanel
+          boardId={agent.board_id}
+          isOpen={chatOpen}
+          onClose={() => setChatOpen(false)}
+          initialAgentId={id}
+        />
+      )}
     </DashboardShell>
   );
 }

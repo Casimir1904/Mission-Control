@@ -79,5 +79,11 @@ func (Agent) Edges() []ent.Edge {
 			Comment("Execution traces for this agent"),
 		edge.To("cost_records", CostRecord.Type).
 			Comment("Cost records for this agent"),
+		edge.To("chat_messages", ChatMessage.Type).
+			Comment("Chat messages from this agent"),
+		edge.To("chat_sessions", ChatSession.Type).
+			Comment("Chat sessions involving this agent"),
+		edge.To("led_boards", Board.Type).
+			Comment("Boards where this agent is the lead orchestrator"),
 	}
 }

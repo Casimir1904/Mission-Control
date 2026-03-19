@@ -3,11 +3,13 @@ package service
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/Casimir1904/Mission-Control/apps/api/internal/dto"
 	"github.com/Casimir1904/Mission-Control/apps/api/internal/ent/generated"
 	"github.com/Casimir1904/Mission-Control/apps/api/internal/ent/generated/agent"
+	"github.com/Casimir1904/Mission-Control/apps/api/internal/ent/generated/chatsession"
 	"github.com/Casimir1904/Mission-Control/apps/api/internal/ent/generated/task"
 )
 
@@ -94,6 +96,17 @@ func (s *dashboardService) GetOverview(ctx context.Context) (*dto.DashboardOverv
 		return nil, fmt.Errorf("service.DashboardService.GetOverview completed today: %w", err)
 	}
 	overview.TasksCompletedToday = completedToday
+
+	// Count active chat sessions.
+	activeSessions, err := s.client.ChatSession.Query().
+		Where(chatsession.StatusEQ(chatsession.StatusActive)).
+		Count(ctx)
+	if err != nil {
+		// Non-fatal: log and continue with 0.
+		slog.Warn("dashboard: failed to count active sessions", "error", err)
+		activeSessions = 0
+	}
+	overview.ActiveSessions = activeSessions
 
 	// Get recent activity events.
 	recentActivity, err := s.activitySvc.ListRecent(ctx, 20)

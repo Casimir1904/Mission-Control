@@ -105,11 +105,20 @@ const config: Config = {
           from: { opacity: "1", transform: "scale(1)" },
           to: { opacity: "0", transform: "scale(0.96)" },
         },
+        "slide-in-top": {
+          from: { transform: "translateY(-8px)", opacity: "0" },
+          to: { transform: "translateY(0)", opacity: "1" },
+        },
+        "pulse-dot": {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0.4" },
+        },
       },
       animation: {
         "skeleton-pulse": "skeleton-pulse 1.5s ease-in-out infinite",
         "slide-in-right": "slide-in-right 200ms ease-out",
         "slide-in-bottom": "slide-in-bottom 200ms ease-out",
+        "slide-in-top": "slide-in-top 200ms ease-out",
         "fade-in-scale": "fade-in-scale 150ms ease-out",
         "dialog-overlay-show": "dialog-overlay-show 150ms ease-out",
         "dialog-overlay-hide": "dialog-overlay-hide 150ms ease-in",
@@ -117,6 +126,7 @@ const config: Config = {
         "dialog-content-hide": "dialog-content-hide 150ms ease-in",
         "select-content-show": "select-content-show 150ms ease-out",
         "select-content-hide": "select-content-hide 100ms ease-in",
+        "pulse-dot": "pulse-dot 1.5s ease-in-out infinite",
       },
     },
   },

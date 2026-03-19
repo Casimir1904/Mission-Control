@@ -6,5 +6,6 @@ type DashboardOverview struct {
 	TasksByStatus       map[string]int        `json:"tasks_by_status"`
 	PendingApprovals    int                   `json:"pending_approvals"`
 	TasksCompletedToday int                   `json:"tasks_completed_today"`
+	ActiveSessions      int                   `json:"active_sessions"`
 	RecentActivity      []ActivityEventOutput `json:"recent_activity"`
 }

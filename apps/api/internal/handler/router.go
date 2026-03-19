@@ -39,6 +39,14 @@ type Dependencies struct {
 	NotificationService service.NotificationService
 	CostService         service.CostService
 	TraceService        service.TraceService
+
+	// Phase 5 services.
+	ChatService     service.ChatService
+	DispatchService service.DispatchService
+
+	// Phase 5b services.
+	DeliverableService  service.DeliverableService
+	OrchestratorService service.OrchestratorService
 }
 
 // NewRouter creates and configures the chi router with Huma API and all middleware.
@@ -85,6 +93,13 @@ func NewRouter(deps *Dependencies) http.Handler {
 	registerNotificationRoutes(api, deps.NotificationService)
 	registerCostRoutes(api, deps.CostService)
 	registerTraceRoutes(api, deps.TraceService)
+
+	// Register Phase 5 chat and dispatch routes.
+	registerChatRoutes(api, deps.ChatService)
+	registerDispatchRoutes(api, deps.DispatchService)
+
+	// Register Phase 5b deliverable routes.
+	registerDeliverableRoutes(api, deps.DeliverableService)
 
 	// Placeholder route groups for future entities.
 	apiRouter.Route("/webhooks", func(r chi.Router) {

@@ -50,6 +50,10 @@ func (Board) Fields() []ent.Field {
 			Optional().
 			Nillable().
 			Comment("Optional foreign key to board group"),
+		field.UUID("lead_agent_id", uuid.UUID{}).
+			Optional().
+			Nillable().
+			Comment("Designated lead agent for orchestration on this board"),
 	}
 }
 
@@ -65,6 +69,10 @@ func (Board) Edges() []ent.Edge {
 			Ref("boards").
 			Field("board_group_id").
 			Unique(),
+		edge.From("lead_agent", Agent.Type).
+			Ref("led_boards").
+			Field("lead_agent_id").
+			Unique(),
 		edge.To("tasks", Task.Type).
 			Comment("Tasks on this board"),
 		edge.To("agents", Agent.Type).
@@ -73,5 +81,9 @@ func (Board) Edges() []ent.Edge {
 			Comment("Memory entries for this board"),
 		edge.To("webhooks", Webhook.Type).
 			Comment("Webhooks configured for this board"),
+		edge.To("chat_messages", ChatMessage.Type).
+			Comment("Chat messages associated with this board"),
+		edge.To("chat_sessions", ChatSession.Type).
+			Comment("Chat sessions on this board"),
 	}
 }

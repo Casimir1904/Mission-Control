@@ -11,6 +11,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/Casimir1904/Mission-Control/apps/api/internal/config"
 	"github.com/Casimir1904/Mission-Control/apps/api/internal/events"
 	"github.com/Casimir1904/Mission-Control/apps/api/internal/gateway"
@@ -126,6 +128,32 @@ func run() error {
 	notifGen := service.NewNotificationGenerator(bus, notifSvc)
 	go notifGen.Run(ctx)
 
+	// Initialize Phase 5 chat and dispatch services.
+	chatSvc := service.NewChatService(entClient, bus, gwManager)
+	dispatchSvc := service.NewDispatchService(entClient, bus, chatSvc)
+
+	// Wire auto-dispatch into task service. When a task transitions to in_progress,
+	// it will automatically dispatch the task to the assigned agent if one has a gateway.
+	service.SetDispatchFunc(taskSvc, func(ctx context.Context, taskID uuid.UUID) error {
+		_, err := dispatchSvc.DispatchTask(ctx, taskID)
+		return err
+	})
+
+	// Initialize Phase 5b services.
+	deliverableSvc := service.NewDeliverableService(entClient)
+	orchestratorSvc := service.NewOrchestratorService(entClient, bus, chatSvc, taskSvc, dispatchSvc)
+
+	// Wire lead agent orchestration into task service. When a task is created on a board
+	// with a lead agent, the orchestrator plans the task in a non-blocking goroutine.
+	service.SetOrchestratorFunc(taskSvc, func(ctx context.Context, taskID uuid.UUID) error {
+		return orchestratorSvc.PlanTask(ctx, taskID)
+	})
+
+	// Start chat event listener goroutine (persists agent messages from gateway events).
+	chatListener := service.NewChatEventListener(bus, chatSvc)
+	chatListener.SetOrchestratorService(orchestratorSvc)
+	go chatListener.Run(ctx)
+
 	// Build the HTTP router.
 	deps := &handler.Dependencies{
 		Config:       cfg,
@@ -149,6 +177,14 @@ func run() error {
 		NotificationService: notifSvc,
 		CostService:         costSvc,
 		TraceService:        traceSvc,
+
+		// Phase 5 services.
+		ChatService:     chatSvc,
+		DispatchService: dispatchSvc,
+
+		// Phase 5b services.
+		DeliverableService:  deliverableSvc,
+		OrchestratorService: orchestratorSvc,
 	}
 	router := handler.NewRouter(deps)
 

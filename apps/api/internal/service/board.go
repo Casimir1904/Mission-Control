@@ -47,6 +47,9 @@ func (s *boardService) Create(ctx context.Context, input dto.CreateBoardInput) (
 	if input.BoardGroupID != nil {
 		builder.SetBoardGroupID(*input.BoardGroupID)
 	}
+	if input.LeadAgentID != nil {
+		builder.SetLeadAgentID(*input.LeadAgentID)
+	}
 
 	b, err := builder.Save(ctx)
 	if err != nil {
@@ -124,6 +127,9 @@ func (s *boardService) Update(ctx context.Context, id uuid.UUID, input dto.Updat
 	if input.MaxAgents != nil {
 		builder.SetMaxAgents(*input.MaxAgents)
 	}
+	if input.LeadAgentID != nil {
+		builder.SetLeadAgentID(*input.LeadAgentID)
+	}
 
 	b, err := builder.Save(ctx)
 	if err != nil {
@@ -173,6 +179,7 @@ func (s *boardService) boardToOutput(ctx context.Context, b *generated.Board) (*
 		MaxAgents:      b.MaxAgents,
 		OrganizationID: b.OrganizationID,
 		BoardGroupID:   b.BoardGroupID,
+		LeadAgentID:    b.LeadAgentID,
 		CreatedAt:      b.CreatedAt,
 		UpdatedAt:      b.UpdatedAt,
 	}

@@ -1,18 +1,21 @@
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ListTodo, Pencil, Trash2, ArrowRight } from "lucide-react";
+import { ListTodo, Pencil, Trash2, ArrowRight, MessageCircle, Zap, Square } from "lucide-react";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/status/empty-state";
 import { StatusBadge } from "@/components/tasks/status-badge";
 import { PriorityBadge } from "@/components/tasks/priority-badge";
-import { useTask, useDeleteTask, useTransitionTask } from "@/lib/api/hooks";
+import { ChatPanel } from "@/components/chat/chat-panel";
+import { useTask, useDeleteTask, useTransitionTask, useDispatchStatus, useAbortGeneration } from "@/lib/api/hooks";
+import { DeliverableList } from "@/components/deliverables/deliverable-list";
 import type { TaskStatus } from "@/lib/api/types";
 
 // Valid next statuses for each current status
@@ -34,9 +37,12 @@ export default function TaskDetailPage({
 }) {
   const { id } = use(params);
   const router = useRouter();
+  const [chatOpen, setChatOpen] = useState(false);
   const { data: task, isLoading, error } = useTask(id);
   const deleteTask = useDeleteTask();
   const transitionTask = useTransitionTask();
+  const { data: dispatchStatus } = useDispatchStatus(id);
+  const abortGeneration = useAbortGeneration();
 
   if (isLoading) {
     return (
@@ -127,6 +133,70 @@ export default function TaskDetailPage({
               <PriorityBadge priority={task.priority} />
             </div>
 
+            {/* Dispatch status for in_progress tasks */}
+            {task.status === "in_progress" && dispatchStatus && (
+              <div className="pt-space-3 border-t border-border-subtle">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-space-2">
+                    <Badge variant={
+                      dispatchStatus.status === "working" ? "info" :
+                      dispatchStatus.status === "completed" ? "healthy" :
+                      dispatchStatus.status === "failed" ? "critical" :
+                      "neutral"
+                    }>
+                      {dispatchStatus.status === "working" && (
+                        <span className="mr-1 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-current" />
+                      )}
+                      {dispatchStatus.status === "dispatched" ? "Dispatched" :
+                       dispatchStatus.status === "working" ? "Agent Working" :
+                       dispatchStatus.status === "completed" ? "Completed" :
+                       "Failed"}
+                    </Badge>
+                    <span className="text-xs text-text-secondary">
+                      {dispatchStatus.agent_name}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-space-1">
+                    {dispatchStatus.session_key && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setChatOpen(true)}
+                        className="text-xs"
+                      >
+                        <MessageCircle size={12} className="mr-1" aria-hidden="true" />
+                        View Chat
+                      </Button>
+                    )}
+                    {(dispatchStatus.status === "dispatched" || dispatchStatus.status === "working") && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          if (dispatchStatus.session_key) {
+                            abortGeneration.mutate(dispatchStatus.session_key);
+                          }
+                        }}
+                        className="text-xs text-status-critical hover:text-status-critical"
+                      >
+                        <Square size={12} className="mr-1" aria-hidden="true" />
+                        Abort
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {(dispatchStatus.status === "dispatched" || dispatchStatus.status === "working") && (
+                  <div className="mt-space-2 flex items-center gap-space-2">
+                    <Zap size={12} className="text-status-info animate-pulse" aria-hidden="true" />
+                    <span className="text-xs text-text-muted">
+                      Agent is working on this task...
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
             {nextStatuses.length > 0 && (
               <div className="pt-space-3 border-t border-border-subtle">
                 <p className="text-xs text-text-muted mb-space-2">
@@ -214,6 +284,18 @@ export default function TaskDetailPage({
           </CardContent>
         </Card>
       </div>
+
+      {/* Deliverables */}
+      <DeliverableList taskId={id} className="mt-space-4" />
+
+      {task.board_id && (
+        <ChatPanel
+          boardId={task.board_id}
+          isOpen={chatOpen}
+          onClose={() => setChatOpen(false)}
+          initialSessionKey={dispatchStatus?.session_key}
+        />
+      )}
     </DashboardShell>
   );
 }

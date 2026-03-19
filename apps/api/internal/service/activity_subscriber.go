@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"strings"
 
@@ -79,6 +80,16 @@ func (s *ActivitySubscriber) handleMessage(ctx context.Context, msg *nats.Msg) {
 		}
 	}
 
+	// Enrich gateway events with human-readable descriptions.
+	if entityType == "gateway" {
+		payload = enrichGatewayEvent(subject, payload)
+	}
+
+	// Enrich chat events with descriptions.
+	if entityType == "chat" {
+		payload = enrichChatEvent(subject, payload)
+	}
+
 	// Try to extract organization_id from payload for proper association.
 	orgID := extractOrgID(payload)
 
@@ -88,6 +99,107 @@ func (s *ActivitySubscriber) handleMessage(ctx context.Context, msg *nats.Msg) {
 			"error", err,
 		)
 	}
+}
+
+// enrichGatewayEvent adds human-readable descriptions to gateway events.
+func enrichGatewayEvent(subject string, payload map[string]any) map[string]any {
+	if payload == nil {
+		payload = make(map[string]any)
+	}
+
+	eventType, _ := payload["event_type"].(string)
+	agentName, _ := payload["agent_name"].(string)
+	if agentName == "" {
+		agentName = "Unknown Agent"
+	}
+
+	var data map[string]any
+	if rawData, ok := payload["data"]; ok {
+		if d, ok := rawData.(map[string]any); ok {
+			data = d
+		}
+	}
+
+	switch eventType {
+	case "chat.message":
+		sessionKey := extractString(data, "sessionKey")
+		payload["description"] = fmt.Sprintf("Agent %s responded in session %s", agentName, sessionKey)
+
+	case "agent.state":
+		state := extractString(data, "state")
+		toolName := extractString(data, "toolName")
+		switch state {
+		case "thinking":
+			payload["description"] = fmt.Sprintf("Agent %s started thinking", agentName)
+		case "tool_use":
+			if toolName != "" {
+				payload["description"] = fmt.Sprintf("Agent %s using tool: %s", agentName, toolName)
+			} else {
+				payload["description"] = fmt.Sprintf("Agent %s using a tool", agentName)
+			}
+		case "idle":
+			payload["description"] = fmt.Sprintf("Agent %s is idle", agentName)
+		default:
+			payload["description"] = fmt.Sprintf("Agent %s state: %s", agentName, state)
+		}
+
+	case "session.created":
+		payload["description"] = fmt.Sprintf("Session started for Agent %s", agentName)
+
+	case "session.ended":
+		payload["description"] = fmt.Sprintf("Agent %s completed session", agentName)
+
+	case "tool.call":
+		toolName := extractString(data, "name")
+		args := extractString(data, "args")
+		if toolName != "" {
+			desc := fmt.Sprintf("Agent %s called %s", agentName, toolName)
+			if args != "" && len(args) <= 100 {
+				desc += fmt.Sprintf("(%s)", args)
+			}
+			payload["description"] = desc
+		}
+
+	default:
+		payload["description"] = fmt.Sprintf("Gateway event: %s", eventType)
+	}
+
+	return payload
+}
+
+// enrichChatEvent adds human-readable descriptions to chat events.
+func enrichChatEvent(_ string, payload map[string]any) map[string]any {
+	if payload == nil {
+		payload = make(map[string]any)
+	}
+
+	role, _ := payload["role"].(string)
+	agentName, _ := payload["agent_name"].(string)
+	sessionKey, _ := payload["session_key"].(string)
+
+	switch role {
+	case "user":
+		payload["description"] = fmt.Sprintf("User sent message in session %s", sessionKey)
+	case "assistant":
+		if agentName != "" {
+			payload["description"] = fmt.Sprintf("Agent %s responded in session %s", agentName, sessionKey)
+		} else {
+			payload["description"] = fmt.Sprintf("Agent responded in session %s", sessionKey)
+		}
+	}
+
+	return payload
+}
+
+// extractString safely extracts a string from a map.
+func extractString(data map[string]any, key string) string {
+	if data == nil {
+		return ""
+	}
+	if v, ok := data[key].(string); ok {
+		return v
+	}
+	return ""
 }
 
 // parseSubject extracts event type, entity type, and entity ID from a NATS subject.

@@ -20,6 +20,9 @@ import {
   costsApi,
   tracesApi,
   gatewaysApi,
+  chatApi,
+  dispatchApi,
+  deliverablesApi,
   ApiError,
 } from "./client";
 import type {
@@ -48,6 +51,9 @@ import type {
   TraceListParams,
   CreateGatewayInput,
   UpdateGatewayInput,
+  CreateChatSessionInput,
+  SendMessageInput,
+  CreateDeliverableInput,
 } from "./types";
 
 // ── Query Keys ──
@@ -120,6 +126,21 @@ export const queryKeys = {
     all: ["gateways"] as const,
     list: (params?: ListParams) => ["gateways", "list", params] as const,
     detail: (id: string) => ["gateways", id] as const,
+  },
+  chat: {
+    all: ["chat"] as const,
+    sessions: (boardId: string) => ["chat", "sessions", boardId] as const,
+    messages: (sessionKey: string) =>
+      ["chat", "messages", sessionKey] as const,
+  },
+  dispatch: {
+    all: ["dispatch"] as const,
+    status: (taskId: string) => ["dispatch", taskId] as const,
+  },
+  deliverables: {
+    all: ["deliverables"] as const,
+    byTask: (taskId: string) => ["deliverables", "task", taskId] as const,
+    detail: (id: string) => ["deliverables", id] as const,
   },
 };
 
@@ -975,6 +996,214 @@ export function useSyncGateway() {
       addToast({
         variant: "error",
         message: "Failed to sync gateway",
+        description: getErrorMessage(error),
+      });
+    },
+  });
+}
+
+// ── Chat Sessions ──
+
+export function useBoardSessions(boardId: string) {
+  return useQuery({
+    queryKey: queryKeys.chat.sessions(boardId),
+    queryFn: () => chatApi.listSessions(boardId),
+    enabled: !!boardId,
+    retry: 1,
+    meta: { suppressErrors: true },
+  });
+}
+
+export function useChatHistory(sessionKey: string) {
+  return useQuery({
+    queryKey: queryKeys.chat.messages(sessionKey),
+    queryFn: () => chatApi.getMessages(sessionKey),
+    enabled: !!sessionKey,
+    refetchInterval: false, // Real-time via WebSocket
+  });
+}
+
+export function useCreateChatSession() {
+  const queryClient = useQueryClient();
+  const { addToast } = useToast();
+
+  return useMutation({
+    mutationFn: ({
+      boardId,
+      data,
+    }: {
+      boardId: string;
+      data?: CreateChatSessionInput;
+    }) => chatApi.createSession(boardId, data),
+    onSuccess: (session) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.chat.all });
+      addToast({
+        variant: "success",
+        message: `Chat started with ${session.agent_name}`,
+      });
+    },
+    onError: (error) => {
+      addToast({
+        variant: "error",
+        message: "Failed to start chat session",
+        description: getErrorMessage(error),
+      });
+    },
+  });
+}
+
+export function useSendMessage() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      sessionKey,
+      data,
+    }: {
+      sessionKey: string;
+      data: SendMessageInput;
+    }) => chatApi.sendMessage(sessionKey, data),
+    onSuccess: (_msg, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.chat.messages(variables.sessionKey),
+      });
+    },
+    // Errors handled at component level for optimistic UI
+  });
+}
+
+export function useAbortGeneration() {
+  const { addToast } = useToast();
+
+  return useMutation({
+    mutationFn: (sessionKey: string) => chatApi.abortGeneration(sessionKey),
+    onSuccess: () => {
+      addToast({ variant: "info", message: "Generation aborted" });
+    },
+    onError: (error) => {
+      addToast({
+        variant: "error",
+        message: "Failed to abort generation",
+        description: getErrorMessage(error),
+      });
+    },
+  });
+}
+
+export function useEndSession() {
+  const queryClient = useQueryClient();
+  const { addToast } = useToast();
+
+  return useMutation({
+    mutationFn: (sessionKey: string) => chatApi.endSession(sessionKey),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.chat.all });
+      addToast({ variant: "info", message: "Chat session ended" });
+    },
+    onError: (error) => {
+      addToast({
+        variant: "error",
+        message: "Failed to end session",
+        description: getErrorMessage(error),
+      });
+    },
+  });
+}
+
+// ── Task Dispatch ──
+
+export function useDispatchTask() {
+  const queryClient = useQueryClient();
+  const { addToast } = useToast();
+
+  return useMutation({
+    mutationFn: (taskId: string) => dispatchApi.dispatch(taskId),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.dispatch.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
+      addToast({
+        variant: "success",
+        message: `Task dispatched to ${result.agent_name}`,
+      });
+    },
+    onError: (error) => {
+      addToast({
+        variant: "error",
+        message: "Failed to dispatch task",
+        description: getErrorMessage(error),
+      });
+    },
+  });
+}
+
+export function useDispatchStatus(taskId: string) {
+  return useQuery({
+    queryKey: queryKeys.dispatch.status(taskId),
+    queryFn: () => dispatchApi.getStatus(taskId),
+    enabled: !!taskId,
+    retry: 1,
+    meta: { suppressErrors: true },
+  });
+}
+
+// ── Deliverables ──
+
+export function useTaskDeliverables(taskId: string) {
+  return useQuery({
+    queryKey: queryKeys.deliverables.byTask(taskId),
+    queryFn: () => deliverablesApi.list(taskId),
+    enabled: !!taskId,
+    retry: 1,
+    meta: { suppressErrors: true },
+  });
+}
+
+export function useCreateDeliverable() {
+  const queryClient = useQueryClient();
+  const { addToast } = useToast();
+
+  return useMutation({
+    mutationFn: ({
+      taskId,
+      data,
+    }: {
+      taskId: string;
+      data: CreateDeliverableInput;
+    }) => deliverablesApi.create(taskId, data),
+    onSuccess: (_deliverable, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.deliverables.byTask(variables.taskId),
+      });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
+      addToast({ variant: "success", message: "Deliverable added" });
+    },
+    onError: (error) => {
+      addToast({
+        variant: "error",
+        message: "Failed to add deliverable",
+        description: getErrorMessage(error),
+      });
+    },
+  });
+}
+
+export function useDeleteDeliverable() {
+  const queryClient = useQueryClient();
+  const { addToast } = useToast();
+
+  return useMutation({
+    mutationFn: (id: string) => deliverablesApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.deliverables.all,
+      });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
+      addToast({ variant: "success", message: "Deliverable deleted" });
+    },
+    onError: (error) => {
+      addToast({
+        variant: "error",
+        message: "Failed to delete deliverable",
         description: getErrorMessage(error),
       });
     },

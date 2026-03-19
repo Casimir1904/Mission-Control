@@ -13,13 +13,15 @@ type CreateBoardInput struct {
 	MaxAgents      int        `json:"max_agents,omitempty" minimum:"1" doc:"Max agents allowed"`
 	OrganizationID uuid.UUID  `json:"organization_id" format:"uuid" doc:"Owning organization"`
 	BoardGroupID   *uuid.UUID `json:"board_group_id,omitempty" format:"uuid" doc:"Optional board group"`
+	LeadAgentID    *uuid.UUID `json:"lead_agent_id,omitempty" format:"uuid" doc:"Designated lead agent for orchestration"`
 }
 
 // UpdateBoardInput is the payload for partially updating a board.
 type UpdateBoardInput struct {
-	Name        *string `json:"name,omitempty" minLength:"1" maxLength:"255" doc:"Board name"`
-	Description *string `json:"description,omitempty" maxLength:"4096" doc:"Board description"`
-	MaxAgents   *int    `json:"max_agents,omitempty" minimum:"1" doc:"Max agents allowed"`
+	Name        *string    `json:"name,omitempty" minLength:"1" maxLength:"255" doc:"Board name"`
+	Description *string    `json:"description,omitempty" maxLength:"4096" doc:"Board description"`
+	MaxAgents   *int       `json:"max_agents,omitempty" minimum:"1" doc:"Max agents allowed"`
+	LeadAgentID *uuid.UUID `json:"lead_agent_id,omitempty" format:"uuid" doc:"Designated lead agent for orchestration"`
 }
 
 // BoardOutput is the API response for a board.
@@ -31,6 +33,7 @@ type BoardOutput struct {
 	MaxAgents      int          `json:"max_agents"`
 	OrganizationID uuid.UUID    `json:"organization_id"`
 	BoardGroupID   *uuid.UUID   `json:"board_group_id,omitempty"`
+	LeadAgentID    *uuid.UUID   `json:"lead_agent_id,omitempty"`
 	AgentCount     int          `json:"agent_count,omitempty"`
 	TaskCounts     *TaskCounts  `json:"task_counts,omitempty"`
 	CreatedAt      time.Time    `json:"created_at"`

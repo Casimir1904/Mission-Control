@@ -1,9 +1,9 @@
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bot, ListTodo, Brain, Settings, Plus, MoreHorizontal, Trash2, Archive } from "lucide-react";
+import { Bot, ListTodo, Brain, Settings, Plus, MoreHorizontal, Trash2, Archive, MessageCircle, Crown } from "lucide-react";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StatusDot } from "@/components/status/status-dot";
 import { EmptyState } from "@/components/status/empty-state";
 import { KanbanBoard } from "@/components/boards/kanban-board";
+import { ChatPanel } from "@/components/chat/chat-panel";
+import { LeadAgentSelector, LeadAgentBadge } from "@/components/boards/lead-agent-selector";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -33,6 +35,7 @@ import {
   useTasksByBoard,
   useAgentsByBoard,
   useDeleteBoard,
+  useBoardSessions,
 } from "@/lib/api/hooks";
 import type { Agent, TaskStatus } from "@/lib/api/types";
 
@@ -43,10 +46,14 @@ export default function BoardDetailPage({
 }) {
   const { id } = use(params);
   const router = useRouter();
+  const [chatOpen, setChatOpen] = useState(false);
   const { data: board, isLoading: boardLoading } = useBoard(id);
   const { data: tasksData, isLoading: tasksLoading } = useTasksByBoard(id);
   const { data: agentsData, isLoading: agentsLoading } = useAgentsByBoard(id);
+  const { data: chatSessions = [] } = useBoardSessions(id);
   const deleteBoard = useDeleteBoard();
+
+  const activeChatCount = chatSessions.filter((s) => s.status === "active").length;
 
   const tasks = tasksData?.items ?? [];
   const agents = agentsData?.items ?? [];
@@ -102,6 +109,23 @@ export default function BoardDetailPage({
         ]}
         action={
           <div className="flex items-center gap-space-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setChatOpen(true)}
+              className="relative"
+            >
+              <MessageCircle size={14} aria-hidden="true" />
+              Chat
+              {activeChatCount > 0 && (
+                <Badge
+                  variant="info"
+                  className="ml-space-1 h-4 min-w-[16px] px-1 text-[10px]"
+                >
+                  {activeChatCount}
+                </Badge>
+              )}
+            </Button>
             <Button asChild size="sm">
               <Link href={`/tasks/new?board_id=${id}` as never}>
                 <Plus size={14} aria-hidden="true" />
@@ -151,6 +175,12 @@ export default function BoardDetailPage({
         <Badge variant={board.status === "active" ? "healthy" : "neutral"}>
           {board.status}
         </Badge>
+        {board.lead_agent_id && (() => {
+          const leadAgent = agents.find((a) => a.id === board.lead_agent_id);
+          return leadAgent ? (
+            <LeadAgentBadge agentName={leadAgent.name} />
+          ) : null;
+        })()}
         <span className="text-sm text-text-secondary">
           <span className="font-mono tabular-nums">{agents.length}</span> agents
         </span>
@@ -222,7 +252,7 @@ export default function BoardDetailPage({
               }
             />
           ) : (
-            <AgentsTable agents={agents} isLoading={agentsLoading} />
+            <AgentsTable agents={agents} isLoading={agentsLoading} leadAgentId={board.lead_agent_id} />
           )}
         </TabsContent>
 
@@ -237,13 +267,21 @@ export default function BoardDetailPage({
 
         {/* Settings tab */}
         <TabsContent value="settings">
-          <EmptyState
-            icon={Settings}
-            title="Board settings"
-            description="Board configuration options will be available here in a future update."
-          />
+          <div className="max-w-xl space-y-space-6">
+            <LeadAgentSelector
+              boardId={id}
+              agents={agents}
+              currentLeadId={board.lead_agent_id}
+            />
+          </div>
         </TabsContent>
       </Tabs>
+
+      <ChatPanel
+        boardId={id}
+        isOpen={chatOpen}
+        onClose={() => setChatOpen(false)}
+      />
     </DashboardShell>
   );
 }
@@ -251,9 +289,11 @@ export default function BoardDetailPage({
 function AgentsTable({
   agents,
   isLoading,
+  leadAgentId,
 }: {
   agents: Agent[];
   isLoading: boolean;
+  leadAgentId?: string;
 }) {
   if (isLoading) {
     return (
@@ -298,7 +338,18 @@ function AgentsTable({
                   label={agent.status}
                 />
               </TableCell>
-              <TableCell className="font-medium">{agent.name}</TableCell>
+              <TableCell className="font-medium">
+                <span className="flex items-center gap-space-1">
+                  {agent.name}
+                  {agent.id === leadAgentId && (
+                    <Crown
+                      size={12}
+                      className="text-accent-primary shrink-0"
+                      aria-label="Lead agent"
+                    />
+                  )}
+                </span>
+              </TableCell>
               <TableCell className="text-text-secondary">
                 {agent.role}
               </TableCell>

@@ -73,5 +73,11 @@ func (Task) Edges() []ent.Edge {
 		edge.From("dependencies", Task.Type).
 			Ref("dependents").
 			Comment("Tasks that this task depends on"),
+		edge.To("chat_messages", ChatMessage.Type).
+			Comment("Chat messages related to this task"),
+		edge.To("chat_sessions", ChatSession.Type).
+			Comment("Chat sessions related to this task"),
+		edge.To("deliverables", Deliverable.Type).
+			Comment("Deliverables produced for this task"),
 	}
 }

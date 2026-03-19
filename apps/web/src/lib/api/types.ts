@@ -25,6 +25,7 @@ export interface Board {
   status: "active" | "archived";
   organization_id: string;
   board_group_id?: string;
+  lead_agent_id?: string;
   agent_count: number;
   task_counts: Record<string, number>;
   created_at: string;
@@ -60,6 +61,7 @@ export interface Task {
   assigned_agent_id?: string;
   assigned_agent_name?: string;
   dependencies: string[];
+  deliverable_count?: number;
   created_at: string;
   updated_at: string;
 }
@@ -104,6 +106,7 @@ export interface UpdateBoardInput {
   name?: string;
   description?: string;
   status?: "active" | "archived";
+  lead_agent_id?: string | null;
 }
 
 export interface CreateAgentInput {
@@ -392,4 +395,74 @@ export interface TestConnectionResult {
 export interface SyncResult {
   agents_synced: number;
   errors: string[];
+}
+
+// ── Phase 5: Chat & Dispatch ──
+
+export interface ChatSession {
+  session_key: string;
+  agent_id: string;
+  agent_name: string;
+  task_id?: string;
+  status: "active" | "ended";
+  created_at: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  session_key: string;
+  role: "user" | "assistant" | "system" | "tool";
+  content: string;
+  metadata?: Record<string, unknown>;
+  agent_name?: string;
+  created_at: string;
+}
+
+export interface SendMessageInput {
+  content: string;
+}
+
+export interface CreateChatSessionInput {
+  agent_id?: string;
+  task_id?: string;
+}
+
+export interface DispatchStatus {
+  session_key: string;
+  status: "dispatched" | "working" | "completed" | "failed";
+  agent_name: string;
+}
+
+export type AgentAction =
+  | "idle"
+  | "thinking"
+  | "tool_use"
+  | "writing"
+  | "responding";
+
+export interface AgentStateEvent {
+  agent_id: string;
+  agent_name: string;
+  action: AgentAction;
+  detail?: string;
+}
+
+// ── Phase 5b: Deliverables ──
+
+export interface Deliverable {
+  id: string;
+  task_id: string;
+  type: "file" | "link" | "text";
+  name: string;
+  content: string;
+  mime_type?: string;
+  size_bytes?: number;
+  created_at: string;
+}
+
+export interface CreateDeliverableInput {
+  type: "file" | "link" | "text";
+  name: string;
+  content: string;
+  mime_type?: string;
 }

@@ -149,6 +149,21 @@ func (b *Bridge) resolveTopics(subject string, data map[string]any) []string {
 			topics = append(topics, "gateway:"+gatewayID)
 		}
 
+	case "chat":
+		// Chat events route to the board topic for real-time delivery.
+		// Subject pattern: mc.chat.{boardID}.message or mc.chat.{boardID}.stream
+		if boardID != "" {
+			topics = append(topics, "board:"+boardID)
+		}
+		// Also try to extract board_id from the subject for chat events.
+		if len(parts) >= 3 && boardID == "" {
+			// mc.chat.{boardID}.message — part[2] may be the board UUID.
+			candidate := parts[2]
+			if len(candidate) == 36 {
+				topics = append(topics, "board:"+candidate)
+			}
+		}
+
 	default:
 		// For any other event type, broadcast to dashboard.
 		topics = append(topics, "dashboard")

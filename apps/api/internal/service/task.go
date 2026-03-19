@@ -27,14 +27,36 @@ type TaskService interface {
 	RemoveDependency(ctx context.Context, taskID, dependsOnID uuid.UUID) error
 }
 
+// DispatchFunc is a function type that dispatches a task to its assigned agent.
+// It is used as a hook to avoid circular dependencies between TaskService and DispatchService.
+type DispatchFunc func(ctx context.Context, taskID uuid.UUID) error
+
 type taskService struct {
-	client *generated.Client
-	bus    *events.Bus
+	client           *generated.Client
+	bus              *events.Bus
+	dispatchFunc     DispatchFunc
+	orchestratorFunc OrchestratorFunc
 }
 
 // NewTaskService creates a new TaskService backed by the Ent client.
 func NewTaskService(client *generated.Client, bus *events.Bus) TaskService {
 	return &taskService{client: client, bus: bus}
+}
+
+// SetDispatchFunc sets the dispatch callback used when tasks transition to in_progress.
+// This must be called after the DispatchService is initialized to break the circular dependency.
+func SetDispatchFunc(ts TaskService, fn DispatchFunc) {
+	if svc, ok := ts.(*taskService); ok {
+		svc.dispatchFunc = fn
+	}
+}
+
+// SetOrchestratorFunc sets the orchestration callback used when tasks are created on boards
+// with a lead agent. This must be called after the OrchestratorService is initialized.
+func SetOrchestratorFunc(ts TaskService, fn OrchestratorFunc) {
+	if svc, ok := ts.(*taskService); ok {
+		svc.orchestratorFunc = fn
+	}
 }
 
 func (s *taskService) Create(ctx context.Context, input dto.CreateTaskInput) (*dto.TaskOutput, error) {
@@ -58,6 +80,22 @@ func (s *taskService) Create(ctx context.Context, input dto.CreateTaskInput) (*d
 	}
 
 	slog.Info("task created", "id", t.ID, "board_id", input.BoardID)
+
+	// Trigger lead agent orchestration in a non-blocking goroutine.
+	// The orchestrator checks if the board has a lead agent and plans accordingly.
+	if s.orchestratorFunc != nil {
+		taskID := t.ID
+		go func() {
+			orchestrateCtx := context.Background()
+			if err := s.orchestratorFunc(orchestrateCtx, taskID); err != nil {
+				slog.Warn("lead agent orchestration failed for task",
+					"task_id", taskID,
+					"error", err,
+				)
+			}
+		}()
+	}
+
 	return s.taskToOutput(ctx, t)
 }
 
@@ -207,6 +245,23 @@ func (s *taskService) Transition(ctx context.Context, id uuid.UUID, newStatus st
 	s.publishTransitionEvent(ctx, updated, string(from), newStatus)
 
 	slog.Info("task transitioned", "id", id, "from", from, "to", to)
+
+	// Auto-dispatch: when transitioning to in_progress and agent is assigned with a gateway,
+	// automatically dispatch the task. Non-blocking: failures are logged but don't block the transition.
+	if to == TaskStatusInProgress && s.dispatchFunc != nil && t.AssignedAgentID != nil {
+		go func() {
+			dispatchCtx := context.Background()
+			if err := s.dispatchFunc(dispatchCtx, id); err != nil {
+				slog.Warn("auto-dispatch failed for task",
+					"task_id", id,
+					"error", err,
+				)
+			} else {
+				slog.Info("auto-dispatch succeeded for task", "task_id", id)
+			}
+		}()
+	}
+
 	return s.taskToOutput(ctx, updated)
 }
 

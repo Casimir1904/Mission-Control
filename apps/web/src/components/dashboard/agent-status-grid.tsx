@@ -10,11 +10,18 @@ import { Bot } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Agent, AgentStatus } from "@/lib/api/types";
 
+interface AgentAction {
+  action: string;
+  detail?: string;
+}
+
 interface AgentStatusGridProps {
   agents: Agent[];
   isLoading: boolean;
   /** IDs of agents that just received an update, for flash highlighting */
   highlightedIds?: Set<string>;
+  /** Map of agent IDs to their current action (from WebSocket agent.state events) */
+  agentActions?: Map<string, AgentAction>;
 }
 
 const STATUS_VARIANT_MAP: Record<AgentStatus, "healthy" | "warning" | "critical" | "info" | "neutral"> = {
@@ -57,6 +64,7 @@ export function AgentStatusGrid({
   agents,
   isLoading,
   highlightedIds,
+  agentActions,
 }: AgentStatusGridProps) {
   // Sort: offline first (needs attention), degraded, provisioning, online, then by name
   const sortedAgents = useMemo(() => {
@@ -141,6 +149,7 @@ export function AgentStatusGrid({
               key={agent.id}
               agent={agent}
               isHighlighted={highlightedIds?.has(agent.id) ?? false}
+              currentAction={agentActions?.get(agent.id)}
             />
           ))}
         </div>
@@ -149,12 +158,31 @@ export function AgentStatusGrid({
   );
 }
 
+function formatAction(action: AgentAction): string {
+  switch (action.action) {
+    case "thinking":
+      return "Thinking...";
+    case "tool_use":
+      return action.detail ? `Using tool: ${action.detail}` : "Using tool...";
+    case "writing":
+      return action.detail ? `Writing: ${action.detail}` : "Writing code...";
+    case "responding":
+      return "Responding...";
+    case "idle":
+      return "Idle";
+    default:
+      return action.action;
+  }
+}
+
 function AgentRow({
   agent,
   isHighlighted,
+  currentAction,
 }: {
   agent: Agent;
   isHighlighted: boolean;
+  currentAction?: AgentAction;
 }) {
   const [flash, setFlash] = useState(false);
   const prevHighlighted = useRef(isHighlighted);
@@ -169,6 +197,11 @@ function AgentRow({
   }, [isHighlighted]);
 
   const variant = STATUS_VARIANT_MAP[agent.status] ?? "neutral";
+  const isActivelyWorking =
+    currentAction &&
+    currentAction.action !== "idle" &&
+    agent.status === "online";
+  const actionText = currentAction ? formatAction(currentAction) : null;
 
   return (
     <Link
@@ -182,7 +215,14 @@ function AgentRow({
       role="row"
     >
       <span className="w-6 shrink-0" role="cell">
-        <StatusDot variant={variant} label={`${agent.name}: ${agent.status}`} />
+        {isActivelyWorking ? (
+          <span
+            className="inline-block h-2 w-2 animate-pulse rounded-full bg-status-healthy"
+            aria-label={`${agent.name}: actively working`}
+          />
+        ) : (
+          <StatusDot variant={variant} label={`${agent.name}: ${agent.status}`} />
+        )}
       </span>
       <span
         className="w-36 shrink-0 truncate text-sm font-medium text-text-primary"
@@ -194,9 +234,13 @@ function AgentRow({
       <span
         className="min-w-0 flex-1 truncate text-sm text-text-secondary"
         role="cell"
-        title={agent.current_task ?? "Idle"}
+        title={actionText ?? agent.current_task ?? "Idle"}
       >
-        {agent.current_task ?? (
+        {isActivelyWorking && actionText ? (
+          <span className="text-status-info">{actionText.length > 40 ? `${actionText.slice(0, 40)}...` : actionText}</span>
+        ) : agent.current_task ? (
+          agent.current_task
+        ) : (
           <span className="text-text-muted">Idle</span>
         )}
       </span>
