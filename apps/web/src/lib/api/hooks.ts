@@ -1234,6 +1234,13 @@ export function useTeamTemplate(name: string) {
   });
 }
 
+export function useAvailableModels() {
+  return useQuery({
+    queryKey: ["teams", "models"] as const,
+    queryFn: () => teamsApi.listModels(),
+  });
+}
+
 export function useCreateTeam() {
   const queryClient = useQueryClient();
   const { addToast } = useToast();

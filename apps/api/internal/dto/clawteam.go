@@ -38,3 +38,12 @@ type CreateTeamOutput struct {
 	BoardID  uuid.UUID     `json:"board_id" doc:"Created board ID"`
 	Agents   []AgentOutput `json:"agents" doc:"Created agents"`
 }
+
+// AvailableModelOutput is a model that can be assigned to agents.
+type AvailableModelOutput struct {
+	Key         string `json:"key" doc:"Model identifier (e.g., anthropic/claude-sonnet-4-6)"`
+	Name        string `json:"name" doc:"Human-readable model name"`
+	Provider    string `json:"provider" doc:"Provider name"`
+	Tier        string `json:"tier" doc:"Cost tier: premium, standard, economy"`
+	ContextSize int    `json:"context_size" doc:"Maximum context window size"`
+}

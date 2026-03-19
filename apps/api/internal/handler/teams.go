@@ -25,6 +25,10 @@ type GetTeamTemplateResponse struct {
 	Body dto.TeamTemplateOutput
 }
 
+type ListAvailableModelsResponse struct {
+	Body []dto.AvailableModelOutput
+}
+
 type CreateTeamRequest struct {
 	Body dto.CreateTeamInput
 }
@@ -48,6 +52,21 @@ func registerTeamRoutes(api huma.API, svc service.TeamTemplateService) {
 			return nil, toHumaError(err)
 		}
 		return &ListTeamTemplatesResponse{Body: templates}, nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID: "list-available-models",
+		Method:      http.MethodGet,
+		Path:        "/teams/models",
+		Summary:     "List available models",
+		Description: "Lists models that can be assigned to agents when creating teams.",
+		Tags:        []string{"teams"},
+	}, func(ctx context.Context, input *struct{}) (*ListAvailableModelsResponse, error) {
+		models, err := svc.ListModels(ctx)
+		if err != nil {
+			return nil, toHumaError(err)
+		}
+		return &ListAvailableModelsResponse{Body: models}, nil
 	})
 
 	huma.Register(api, huma.Operation{

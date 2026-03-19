@@ -15,6 +15,7 @@ import (
 type TeamTemplateService interface {
 	ListTemplates(ctx context.Context) ([]dto.TeamTemplateOutput, error)
 	GetTemplate(ctx context.Context, name string) (*dto.TeamTemplateOutput, error)
+	ListModels(ctx context.Context) ([]dto.AvailableModelOutput, error)
 	CreateTeam(ctx context.Context, input dto.CreateTeamInput) (*dto.CreateTeamOutput, error)
 }
 
@@ -36,6 +37,21 @@ func (s *teamTemplateService) ListTemplates(ctx context.Context) ([]dto.TeamTemp
 	out := make([]dto.TeamTemplateOutput, len(templates))
 	for i, t := range templates {
 		out[i] = templateToOutput(t)
+	}
+	return out, nil
+}
+
+func (s *teamTemplateService) ListModels(ctx context.Context) ([]dto.AvailableModelOutput, error) {
+	models := teamtemplate.AvailableModels()
+	out := make([]dto.AvailableModelOutput, len(models))
+	for i, m := range models {
+		out[i] = dto.AvailableModelOutput{
+			Key:         m.Key,
+			Name:        m.Name,
+			Provider:    m.Provider,
+			Tier:        m.Tier,
+			ContextSize: m.ContextSize,
+		}
 	}
 	return out, nil
 }

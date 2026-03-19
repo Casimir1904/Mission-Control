@@ -54,6 +54,7 @@ import type {
   TeamTemplate,
   CreateTeamInput,
   CreateTeamOutput,
+  AvailableModel,
 } from "./types";
 
 export { ApiError };
@@ -457,6 +458,9 @@ export const teamsApi = {
 
   getTemplate: (name: string) =>
     apiFetch<TeamTemplate>(`/api/v1/teams/templates/${name}`),
+
+  listModels: () =>
+    apiFetch<AvailableModel[]>("/api/v1/teams/models"),
 
   createTeam: (data: CreateTeamInput) =>
     apiFetch<CreateTeamOutput>("/api/v1/teams/create", {

@@ -506,3 +506,11 @@ export interface CreateTeamOutput {
   board_id: string;
   agents: Agent[];
 }
+
+export interface AvailableModel {
+  key: string;
+  name: string;
+  provider: string;
+  tier: "premium" | "standard" | "economy";
+  context_size: number;
+}

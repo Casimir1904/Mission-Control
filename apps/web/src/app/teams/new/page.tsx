@@ -15,6 +15,7 @@ import {
   useCreateTeam,
   useGateways,
   useCurrentOrganization,
+  useAvailableModels,
 } from "@/lib/api/hooks";
 import type { AgentModelOverride } from "@/lib/api/types";
 
@@ -32,6 +33,7 @@ function NewTeamPageInner() {
   const preselected = searchParams.get("template") ?? "";
 
   const { data: templates, isLoading: templatesLoading } = useTeamTemplates();
+  const { data: models } = useAvailableModels();
   const { data: gatewaysData } = useGateways();
   const { data: org } = useCurrentOrganization();
   const createTeam = useCreateTeam();
@@ -142,12 +144,17 @@ function NewTeamPageInner() {
                   <Badge variant="neutral" className="text-xs shrink-0">
                     {agent.role}
                   </Badge>
-                  <input
-                    type="text"
+                  <select
                     value={modelOverrides[agent.name] ?? agent.default_model}
                     onChange={(e) => handleModelChange(agent.name, e.target.value)}
-                    className="ml-auto w-64 rounded-md border border-border-subtle bg-bg-base px-space-2 py-1 text-xs font-mono text-text-primary focus:border-accent-primary focus:outline-none focus:ring-1 focus:ring-accent-primary"
-                  />
+                    className="ml-auto w-72 rounded-md border border-border-subtle bg-bg-base px-space-2 py-1 text-xs font-mono text-text-primary focus:border-accent-primary focus:outline-none focus:ring-1 focus:ring-accent-primary"
+                  >
+                    {(models ?? []).map((m) => (
+                      <option key={m.key} value={m.key}>
+                        {m.name} ({m.tier})
+                      </option>
+                    ))}
+                  </select>
                 </div>
               ))}
             </div>
