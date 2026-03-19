@@ -5,132 +5,159 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/Casimir1904/Mission-Control/apps/api/internal/clawteam"
+	"github.com/google/uuid"
+
 	"github.com/Casimir1904/Mission-Control/apps/api/internal/dto"
+	"github.com/Casimir1904/Mission-Control/apps/api/internal/teamtemplate"
 )
 
-// ClawTeamService manages ClawTeam team operations.
-type ClawTeamService interface {
+// TeamTemplateService manages team templates and creates teams from them.
+type TeamTemplateService interface {
 	ListTemplates(ctx context.Context) ([]dto.TeamTemplateOutput, error)
-	CreateRun(ctx context.Context, input dto.CreateTeamRunInput) (*dto.TeamRunOutput, error)
-	GetRun(ctx context.Context, id string) (*dto.TeamRunOutput, error)
-	ListRuns(ctx context.Context, opts dto.ListTeamRunsOptions) ([]dto.TeamRunOutput, error)
-	CancelRun(ctx context.Context, id string) error
-	SyncRun(ctx context.Context, id string) (*dto.TeamRunOutput, error)
+	GetTemplate(ctx context.Context, name string) (*dto.TeamTemplateOutput, error)
+	CreateTeam(ctx context.Context, input dto.CreateTeamInput) (*dto.CreateTeamOutput, error)
 }
 
-type clawTeamService struct {
-	client *clawteam.Client
+type teamTemplateService struct {
+	boardSvc BoardService
+	agentSvc AgentService
 }
 
-// NewClawTeamService creates a new ClawTeamService.
-func NewClawTeamService(client *clawteam.Client) ClawTeamService {
-	return &clawTeamService{client: client}
-}
-
-func (s *clawTeamService) ListTemplates(ctx context.Context) ([]dto.TeamTemplateOutput, error) {
-	templates, err := s.client.ListTemplates(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("clawteam.ListTemplates: %w", err)
+// NewTeamTemplateService creates a new TeamTemplateService.
+func NewTeamTemplateService(boardSvc BoardService, agentSvc AgentService) TeamTemplateService {
+	return &teamTemplateService{
+		boardSvc: boardSvc,
+		agentSvc: agentSvc,
 	}
+}
 
+func (s *teamTemplateService) ListTemplates(ctx context.Context) ([]dto.TeamTemplateOutput, error) {
+	templates := teamtemplate.Registry()
 	out := make([]dto.TeamTemplateOutput, len(templates))
 	for i, t := range templates {
-		out[i] = dto.TeamTemplateOutput{
-			Name:        t.Name,
-			Description: t.Description,
-			Roles:       t.Roles,
-			AgentCount:  t.AgentCount,
-		}
+		out[i] = templateToOutput(t)
 	}
 	return out, nil
 }
 
-func (s *clawTeamService) CreateRun(ctx context.Context, input dto.CreateTeamRunInput) (*dto.TeamRunOutput, error) {
-	run, err := s.client.CreateRun(ctx, clawteam.CreateRunRequest{
-		TeamName: input.TeamName,
-		Task:     input.Task,
+func (s *teamTemplateService) GetTemplate(ctx context.Context, name string) (*dto.TeamTemplateOutput, error) {
+	for _, t := range teamtemplate.Registry() {
+		if t.Name == name {
+			out := templateToOutput(t)
+			return &out, nil
+		}
+	}
+	return nil, fmt.Errorf("template %q not found", name)
+}
+
+func (s *teamTemplateService) CreateTeam(ctx context.Context, input dto.CreateTeamInput) (*dto.CreateTeamOutput, error) {
+	// Find the template.
+	var tpl *teamtemplate.Template
+	for _, t := range teamtemplate.Registry() {
+		if t.Name == input.TemplateName {
+			tpl = &t
+			break
+		}
+	}
+	if tpl == nil {
+		return nil, fmt.Errorf("template %q not found", input.TemplateName)
+	}
+
+	// Build model override map.
+	modelOverrides := make(map[string]string, len(input.ModelOverrides))
+	for _, o := range input.ModelOverrides {
+		modelOverrides[o.RoleName] = o.Model
+	}
+
+	// Create the board.
+	board, err := s.boardSvc.Create(ctx, dto.CreateBoardInput{
+		Name:              input.BoardName,
+		Description:       tpl.Description,
+		OrganizationID:    input.OrganizationID,
+		OrchestrationMode: "lead_agent",
 	})
 	if err != nil {
-		return nil, fmt.Errorf("clawteam.CreateRun: %w", err)
+		return nil, fmt.Errorf("create board: %w", err)
 	}
 
-	slog.Info("clawteam: team run created",
-		"run_id", run.ID,
-		"team", run.TeamName,
-		"task", run.Task,
+	slog.Info("team template: board created",
+		"board_id", board.ID,
+		"template", tpl.Name,
 	)
 
-	return toTeamRunOutput(run, input.BoardID), nil
-}
+	// Create agents from template roles.
+	var leaderID *uuid.UUID
+	agents := make([]dto.AgentOutput, 0, len(tpl.Agents))
+	for _, role := range tpl.Agents {
+		model := role.DefaultModel
+		if override, ok := modelOverrides[role.Name]; ok {
+			model = override
+		}
 
-func (s *clawTeamService) GetRun(ctx context.Context, id string) (*dto.TeamRunOutput, error) {
-	run, err := s.client.GetRun(ctx, id)
-	if err != nil {
-		return nil, fmt.Errorf("clawteam.GetRun: %w", err)
-	}
-	return toTeamRunOutput(run, ""), nil
-}
-
-func (s *clawTeamService) ListRuns(ctx context.Context, opts dto.ListTeamRunsOptions) ([]dto.TeamRunOutput, error) {
-	runs, err := s.client.ListRuns(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("clawteam.ListRuns: %w", err)
-	}
-
-	out := make([]dto.TeamRunOutput, 0, len(runs))
-	for _, r := range runs {
-		// Apply client-side filtering if ClawTeam API doesn't support it.
-		if opts.Status != "" && r.Status != opts.Status {
+		agent, err := s.agentSvc.Create(ctx, dto.CreateAgentInput{
+			Name:      role.Name,
+			Role:      role.Role,
+			Backstory: role.Backstory,
+			Model:     model,
+			BoardID:   board.ID,
+			GatewayID: input.GatewayID,
+		})
+		if err != nil {
+			slog.Error("team template: failed to create agent",
+				"role", role.Name,
+				"board_id", board.ID,
+				"error", err,
+			)
 			continue
 		}
-		if opts.TeamName != "" && r.TeamName != opts.TeamName {
-			continue
-		}
-		out = append(out, *toTeamRunOutput(&r, ""))
-	}
-	return out, nil
-}
 
-func (s *clawTeamService) CancelRun(ctx context.Context, id string) error {
-	if err := s.client.CancelRun(ctx, id); err != nil {
-		return fmt.Errorf("clawteam.CancelRun: %w", err)
-	}
-	slog.Info("clawteam: team run cancelled", "run_id", id)
-	return nil
-}
+		agents = append(agents, *agent)
 
-func (s *clawTeamService) SyncRun(ctx context.Context, id string) (*dto.TeamRunOutput, error) {
-	run, err := s.client.GetRun(ctx, id)
-	if err != nil {
-		return nil, fmt.Errorf("clawteam.SyncRun: %w", err)
-	}
-	slog.Info("clawteam: team run synced", "run_id", id, "status", run.Status)
-	return toTeamRunOutput(run, ""), nil
-}
-
-func toTeamRunOutput(run *clawteam.TeamRun, boardID string) *dto.TeamRunOutput {
-	subTasks := make([]dto.SubTaskOutput, len(run.SubTasks))
-	for i, st := range run.SubTasks {
-		subTasks[i] = dto.SubTaskOutput{
-			ID:        st.ID,
-			Title:     st.Title,
-			Agent:     st.Agent,
-			Status:    st.Status,
-			DependsOn: st.DependsOn,
-			Result:    st.Result,
+		if role.IsLeader {
+			leaderID = &agent.ID
 		}
 	}
 
-	return &dto.TeamRunOutput{
-		ID:        run.ID,
-		TeamName:  run.TeamName,
-		Task:      run.Task,
-		Status:    run.Status,
-		SubTasks:  subTasks,
-		Result:    run.Result,
-		BoardID:   boardID,
-		StartedAt: run.StartedAt,
-		EndedAt:   run.EndedAt,
+	// Set the leader on the board.
+	if leaderID != nil {
+		_, err := s.boardSvc.Update(ctx, board.ID, dto.UpdateBoardInput{
+			LeadAgentID: leaderID,
+		})
+		if err != nil {
+			slog.Error("team template: failed to set lead agent",
+				"board_id", board.ID,
+				"lead_agent_id", leaderID,
+				"error", err,
+			)
+		}
+	}
+
+	slog.Info("team template: team created",
+		"board_id", board.ID,
+		"template", tpl.Name,
+		"agents_created", len(agents),
+	)
+
+	return &dto.CreateTeamOutput{
+		BoardID: board.ID,
+		Agents:  agents,
+	}, nil
+}
+
+func templateToOutput(t teamtemplate.Template) dto.TeamTemplateOutput {
+	agents := make([]dto.AgentRoleOutput, len(t.Agents))
+	for i, a := range t.Agents {
+		agents[i] = dto.AgentRoleOutput{
+			Name:         a.Name,
+			Role:         a.Role,
+			Backstory:    a.Backstory,
+			DefaultModel: a.DefaultModel,
+			IsLeader:     a.IsLeader,
+		}
+	}
+	return dto.TeamTemplateOutput{
+		Name:        t.Name,
+		Description: t.Description,
+		Agents:      agents,
 	}
 }

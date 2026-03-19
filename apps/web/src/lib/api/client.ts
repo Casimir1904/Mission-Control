@@ -52,9 +52,8 @@ import type {
   Deliverable,
   CreateDeliverableInput,
   TeamTemplate,
-  TeamRun,
-  CreateTeamRunInput,
-  TeamRunListParams,
+  CreateTeamInput,
+  CreateTeamOutput,
 } from "./types";
 
 export { ApiError };
@@ -450,29 +449,18 @@ export const dispatchApi = {
     apiFetch<DispatchStatus>(`/api/v1/tasks/${taskId}/dispatch`),
 };
 
-// ── Teams (ClawTeam) ──
+// ── Teams ──
 
 export const teamsApi = {
   listTemplates: () =>
     apiFetch<TeamTemplate[]>("/api/v1/teams/templates"),
 
-  createRun: (data: CreateTeamRunInput) =>
-    apiFetch<TeamRun>("/api/v1/teams/runs", {
+  getTemplate: (name: string) =>
+    apiFetch<TeamTemplate>(`/api/v1/teams/templates/${name}`),
+
+  createTeam: (data: CreateTeamInput) =>
+    apiFetch<CreateTeamOutput>("/api/v1/teams/create", {
       method: "POST",
       body: JSON.stringify(data),
     }),
-
-  listRuns: (params?: TeamRunListParams) =>
-    apiFetch<TeamRun[]>("/api/v1/teams/runs", {
-      params: params ? toParams({ ...params }) : undefined,
-    }),
-
-  getRun: (id: string) =>
-    apiFetch<TeamRun>(`/api/v1/teams/runs/${id}`),
-
-  cancelRun: (id: string) =>
-    apiFetch<void>(`/api/v1/teams/runs/${id}`, { method: "DELETE" }),
-
-  syncRun: (id: string) =>
-    apiFetch<TeamRun>(`/api/v1/teams/runs/${id}/sync`, { method: "POST" }),
 };

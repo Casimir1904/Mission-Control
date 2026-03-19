@@ -18,7 +18,7 @@ export interface OrganizationMember {
   joined_at: string;
 }
 
-export type OrchestrationMode = "manual" | "lead_agent" | "clawteam";
+export type OrchestrationMode = "manual" | "lead_agent";
 
 export interface Board {
   id: string;
@@ -44,6 +44,7 @@ export interface Agent {
   goal: string;
   board_id: string;
   board_name?: string;
+  model?: string;
   gateway_id?: string;
   current_task?: string;
   last_heartbeat?: string;
@@ -117,6 +118,7 @@ export interface CreateAgentInput {
   role: string;
   backstory?: string;
   goal?: string;
+  model?: string;
   board_id: string;
 }
 
@@ -125,6 +127,7 @@ export interface UpdateAgentInput {
   role?: string;
   backstory?: string;
   goal?: string;
+  model?: string;
 }
 
 export interface CreateTaskInput {
@@ -470,43 +473,36 @@ export interface CreateDeliverableInput {
   mime_type?: string;
 }
 
-// ── Phase 6: ClawTeam Integration ──
+// ── Phase 6: Team Templates ──
+
+export interface AgentRoleDefinition {
+  name: string;
+  role: string;
+  backstory: string;
+  default_model: string;
+  is_leader: boolean;
+}
 
 export interface TeamTemplate {
   name: string;
   description: string;
-  roles: string[];
-  agent_count: number;
+  agents: AgentRoleDefinition[];
 }
 
-export interface TeamRun {
-  id: string;
-  team_name: string;
-  task: string;
-  status: "pending" | "running" | "completed" | "failed";
-  sub_tasks: SubTask[];
-  result?: string;
-  board_id?: string;
-  started_at?: string;
-  ended_at?: string;
+export interface AgentModelOverride {
+  role_name: string;
+  model: string;
 }
 
-export interface SubTask {
-  id: string;
-  title: string;
-  agent: string;
-  status: string;
-  depends_on?: string[];
-  result?: string;
+export interface CreateTeamInput {
+  template_name: string;
+  board_name: string;
+  organization_id: string;
+  gateway_id?: string;
+  model_overrides?: AgentModelOverride[];
 }
 
-export interface CreateTeamRunInput {
-  team_name: string;
-  task: string;
-  board_id?: string;
-}
-
-export interface TeamRunListParams {
-  status?: string;
-  team_name?: string;
+export interface CreateTeamOutput {
+  board_id: string;
+  agents: Agent[];
 }

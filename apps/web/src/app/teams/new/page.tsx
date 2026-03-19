@@ -1,32 +1,63 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { Users, Play } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Users, Crown } from "lucide-react";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/status/empty-state";
-import { useTeamTemplates, useCreateTeamRun } from "@/lib/api/hooks";
+import {
+  useTeamTemplates,
+  useCreateTeam,
+  useGateways,
+  useCurrentOrganization,
+} from "@/lib/api/hooks";
+import type { AgentModelOverride } from "@/lib/api/types";
 
-export default function NewTeamRunPage() {
+export default function NewTeamPage() {
   const router = useRouter();
-  const { data: templates, isLoading } = useTeamTemplates();
-  const createRun = useCreateTeamRun();
-  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
-  const [task, setTask] = useState("");
+  const searchParams = useSearchParams();
+  const preselected = searchParams.get("template") ?? "";
+
+  const { data: templates, isLoading: templatesLoading } = useTeamTemplates();
+  const { data: gatewaysData } = useGateways();
+  const { data: org } = useCurrentOrganization();
+  const createTeam = useCreateTeam();
+
+  const [selectedTemplate, setSelectedTemplate] = useState(preselected);
+  const [boardName, setBoardName] = useState("");
+  const [gatewayId, setGatewayId] = useState("");
+  const [modelOverrides, setModelOverrides] = useState<Record<string, string>>({});
+
+  const gateways = gatewaysData?.items ?? [];
+  const template = templates?.find((t) => t.name === selectedTemplate);
+
+  function handleModelChange(roleName: string, model: string) {
+    setModelOverrides((prev) => ({ ...prev, [roleName]: model }));
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!selectedTemplate || !task.trim()) return;
+    if (!selectedTemplate || !boardName.trim() || !org) return;
 
-    createRun.mutate(
-      { team_name: selectedTemplate, task: task.trim() },
+    const overrides: AgentModelOverride[] = Object.entries(modelOverrides)
+      .filter(([, model]) => model)
+      .map(([role_name, model]) => ({ role_name, model }));
+
+    createTeam.mutate(
       {
-        onSuccess: (run) => router.push(`/teams/runs/${run.id}` as never),
+        template_name: selectedTemplate,
+        board_name: boardName.trim(),
+        organization_id: org.id,
+        gateway_id: gatewayId || undefined,
+        model_overrides: overrides.length > 0 ? overrides : undefined,
+      },
+      {
+        onSuccess: (result) => router.push(`/boards/${result.board_id}` as never),
       }
     );
   }
@@ -34,31 +65,24 @@ export default function NewTeamRunPage() {
   return (
     <DashboardShell>
       <PageHeader
-        title="Start Team Run"
-        description="Select a team template and describe the task."
+        title="Create Team"
+        description="Pick a template, configure models per agent, and launch a new board."
         breadcrumbs={[
           { label: "Teams", href: "/teams" },
-          { label: "New Run" },
+          { label: "Create" },
         ]}
       />
 
       <form onSubmit={handleSubmit} className="max-w-2xl space-y-space-6">
+        {/* Template selection */}
         <div>
           <label className="mb-space-2 block text-sm font-medium text-text-primary">
-            Team Template
+            Template
           </label>
-          {isLoading ? (
-            <div className="grid gap-space-3 sm:grid-cols-2">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="h-28 w-full" />
-              ))}
-            </div>
+          {templatesLoading ? (
+            <Skeleton className="h-28 w-full" />
           ) : !templates || templates.length === 0 ? (
-            <EmptyState
-              icon={Users}
-              title="No templates"
-              description="ClawTeam has no templates available."
-            />
+            <EmptyState icon={Users} title="No templates" description="No templates available." />
           ) : (
             <div className="grid gap-space-3 sm:grid-cols-2">
               {templates.map((tpl) => (
@@ -69,22 +93,19 @@ export default function NewTeamRunPage() {
                       ? "border-accent-primary ring-1 ring-accent-primary"
                       : "hover:border-border-default"
                   }`}
-                  onClick={() => setSelectedTemplate(tpl.name)}
+                  onClick={() => {
+                    setSelectedTemplate(tpl.name);
+                    if (!boardName) setBoardName(tpl.name);
+                  }}
                 >
                   <CardHeader className="pb-space-2">
                     <CardTitle className="text-sm">{tpl.name}</CardTitle>
-                    <CardDescription className="text-xs">
-                      {tpl.description}
-                    </CardDescription>
                   </CardHeader>
                   <CardContent className="pt-0">
-                    <div className="flex flex-wrap gap-space-1">
-                      {tpl.roles.map((role) => (
-                        <Badge key={role} variant="neutral" className="text-xs">
-                          {role}
-                        </Badge>
-                      ))}
-                    </div>
+                    <p className="text-xs text-text-secondary">{tpl.description}</p>
+                    <p className="mt-space-1 text-xs text-text-muted">
+                      {tpl.agents.length} agents
+                    </p>
                   </CardContent>
                 </Card>
               ))}
@@ -92,36 +113,85 @@ export default function NewTeamRunPage() {
           )}
         </div>
 
+        {/* Per-agent model configuration */}
+        {template && (
+          <div>
+            <label className="mb-space-2 block text-sm font-medium text-text-primary">
+              Agent Models
+            </label>
+            <div className="space-y-space-2">
+              {template.agents.map((agent) => (
+                <div
+                  key={agent.name}
+                  className="flex items-center gap-space-3 rounded-md border border-border-subtle bg-bg-surface px-space-3 py-space-2"
+                >
+                  <div className="flex items-center gap-space-1 min-w-[140px]">
+                    {agent.is_leader && (
+                      <Crown size={12} className="text-accent-primary shrink-0" aria-hidden="true" />
+                    )}
+                    <span className="text-sm font-medium">{agent.name}</span>
+                  </div>
+                  <Badge variant="neutral" className="text-xs shrink-0">
+                    {agent.role}
+                  </Badge>
+                  <input
+                    type="text"
+                    value={modelOverrides[agent.name] ?? agent.default_model}
+                    onChange={(e) => handleModelChange(agent.name, e.target.value)}
+                    className="ml-auto w-64 rounded-md border border-border-subtle bg-bg-base px-space-2 py-1 text-xs font-mono text-text-primary focus:border-accent-primary focus:outline-none focus:ring-1 focus:ring-accent-primary"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Board name */}
         <div>
-          <label
-            htmlFor="task-input"
-            className="mb-space-2 block text-sm font-medium text-text-primary"
-          >
-            Task Description
+          <label htmlFor="board-name" className="mb-space-2 block text-sm font-medium text-text-primary">
+            Board Name
           </label>
-          <textarea
-            id="task-input"
-            value={task}
-            onChange={(e) => setTask(e.target.value)}
-            placeholder="Describe what the team should accomplish..."
+          <input
+            id="board-name"
+            type="text"
+            value={boardName}
+            onChange={(e) => setBoardName(e.target.value)}
+            placeholder="e.g., Code Review Sprint 12"
             className="w-full rounded-md border border-border-subtle bg-bg-surface px-space-3 py-space-2 text-sm text-text-primary placeholder:text-text-muted focus:border-accent-primary focus:outline-none focus:ring-1 focus:ring-accent-primary"
-            rows={4}
           />
         </div>
 
+        {/* Gateway selection */}
+        {gateways.length > 0 && (
+          <div>
+            <label htmlFor="gateway" className="mb-space-2 block text-sm font-medium text-text-primary">
+              Gateway (optional)
+            </label>
+            <select
+              id="gateway"
+              value={gatewayId}
+              onChange={(e) => setGatewayId(e.target.value)}
+              className="w-full rounded-md border border-border-subtle bg-bg-surface px-space-3 py-space-2 text-sm text-text-primary focus:border-accent-primary focus:outline-none focus:ring-1 focus:ring-accent-primary"
+            >
+              <option value="">No gateway</option>
+              {gateways.map((gw) => (
+                <option key={gw.id} value={gw.id}>
+                  {gw.name} ({gw.status})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Submit */}
         <div className="flex items-center gap-space-3">
           <Button
             type="submit"
-            disabled={!selectedTemplate || !task.trim() || createRun.isPending}
+            disabled={!selectedTemplate || !boardName.trim() || !org || createTeam.isPending}
           >
-            <Play size={14} aria-hidden="true" />
-            {createRun.isPending ? "Starting..." : "Start Run"}
+            {createTeam.isPending ? "Creating..." : "Create Team"}
           </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => router.back()}
-          >
+          <Button type="button" variant="outline" onClick={() => router.back()}>
             Cancel
           </Button>
         </div>

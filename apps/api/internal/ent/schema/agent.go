@@ -48,6 +48,10 @@ func (Agent) Fields() []ent.Field {
 			Optional().
 			MaxLen(4096).
 			Comment("Agent's primary goal or mission"),
+		field.String("model").
+			Optional().
+			MaxLen(255).
+			Comment("LLM model identifier (e.g., anthropic/claude-sonnet-4-6)"),
 		field.UUID("board_id", uuid.UUID{}).
 			Comment("Foreign key to the board this agent belongs to"),
 		field.UUID("gateway_id", uuid.UUID{}).

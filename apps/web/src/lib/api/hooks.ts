@@ -55,8 +55,7 @@ import type {
   CreateChatSessionInput,
   SendMessageInput,
   CreateDeliverableInput,
-  CreateTeamRunInput,
-  TeamRunListParams,
+  CreateTeamInput,
 } from "./types";
 
 // ── Query Keys ──
@@ -148,8 +147,7 @@ export const queryKeys = {
   teams: {
     all: ["teams"] as const,
     templates: ["teams", "templates"] as const,
-    runs: (params?: TeamRunListParams) => ["teams", "runs", params] as const,
-    run: (id: string) => ["teams", "runs", id] as const,
+    template: (name: string) => ["teams", "templates", name] as const,
   },
 };
 
@@ -1219,95 +1217,40 @@ export function useDeleteDeliverable() {
   });
 }
 
-// ── Teams (ClawTeam) ──
+// ── Teams ──
 
 export function useTeamTemplates() {
   return useQuery({
     queryKey: queryKeys.teams.templates,
     queryFn: () => teamsApi.listTemplates(),
-    retry: 1,
-    meta: { suppressErrors: true },
   });
 }
 
-export function useTeamRuns(params?: TeamRunListParams) {
+export function useTeamTemplate(name: string) {
   return useQuery({
-    queryKey: queryKeys.teams.runs(params),
-    queryFn: () => teamsApi.listRuns(params),
-    retry: 1,
-    meta: { suppressErrors: true },
+    queryKey: queryKeys.teams.template(name),
+    queryFn: () => teamsApi.getTemplate(name),
+    enabled: !!name,
   });
 }
 
-export function useTeamRun(id: string) {
-  return useQuery({
-    queryKey: queryKeys.teams.run(id),
-    queryFn: () => teamsApi.getRun(id),
-    enabled: !!id,
-    refetchInterval: 5_000, // Poll while viewing
-  });
-}
-
-export function useCreateTeamRun() {
+export function useCreateTeam() {
   const queryClient = useQueryClient();
   const { addToast } = useToast();
 
   return useMutation({
-    mutationFn: (data: CreateTeamRunInput) => teamsApi.createRun(data),
-    onSuccess: (run) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.teams.all });
+    mutationFn: (data: CreateTeamInput) => teamsApi.createTeam(data),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.boards.all });
       addToast({
         variant: "success",
-        message: `Team run started: ${run.team_name}`,
+        message: `Team created with ${result.agents.length} agents`,
       });
     },
     onError: (error) => {
       addToast({
         variant: "error",
-        message: "Failed to start team run",
-        description: getErrorMessage(error),
-      });
-    },
-  });
-}
-
-export function useCancelTeamRun() {
-  const queryClient = useQueryClient();
-  const { addToast } = useToast();
-
-  return useMutation({
-    mutationFn: (id: string) => teamsApi.cancelRun(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.teams.all });
-      addToast({ variant: "success", message: "Team run cancelled" });
-    },
-    onError: (error) => {
-      addToast({
-        variant: "error",
-        message: "Failed to cancel team run",
-        description: getErrorMessage(error),
-      });
-    },
-  });
-}
-
-export function useSyncTeamRun() {
-  const queryClient = useQueryClient();
-  const { addToast } = useToast();
-
-  return useMutation({
-    mutationFn: (id: string) => teamsApi.syncRun(id),
-    onSuccess: (run) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.teams.all });
-      addToast({
-        variant: "success",
-        message: `Run synced: ${run.status}`,
-      });
-    },
-    onError: (error) => {
-      addToast({
-        variant: "error",
-        message: "Failed to sync team run",
+        message: "Failed to create team",
         description: getErrorMessage(error),
       });
     },

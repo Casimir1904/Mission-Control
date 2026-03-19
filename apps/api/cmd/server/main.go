@@ -13,7 +13,6 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/Casimir1904/Mission-Control/apps/api/internal/clawteam"
 	"github.com/Casimir1904/Mission-Control/apps/api/internal/config"
 	"github.com/Casimir1904/Mission-Control/apps/api/internal/events"
 	"github.com/Casimir1904/Mission-Control/apps/api/internal/gateway"
@@ -155,13 +154,8 @@ func run() error {
 	chatListener.SetOrchestratorService(orchestratorSvc)
 	go chatListener.Run(ctx)
 
-	// Initialize Phase 6 ClawTeam integration (optional).
-	var clawTeamSvc service.ClawTeamService
-	if cfg.ClawTeamEnabled && cfg.ClawTeamSSH != "" {
-		ctClient := clawteam.NewClient(cfg.ClawTeamSSH, cfg.ClawTeamURL)
-		clawTeamSvc = service.NewClawTeamService(ctClient)
-		slog.Info("clawteam integration enabled", "ssh", cfg.ClawTeamSSH, "board_url", cfg.ClawTeamURL)
-	}
+	// Initialize Phase 6 team template service.
+	teamTemplateSvc := service.NewTeamTemplateService(boardSvc, agentSvc)
 
 	// Build the HTTP router.
 	deps := &handler.Dependencies{
@@ -196,7 +190,7 @@ func run() error {
 		OrchestratorService: orchestratorSvc,
 
 		// Phase 6 services.
-		ClawTeamService: clawTeamSvc,
+		TeamTemplateService: teamTemplateSvc,
 	}
 	router := handler.NewRouter(deps)
 

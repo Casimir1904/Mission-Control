@@ -12,6 +12,7 @@ type CreateAgentInput struct {
 	Role      string     `json:"role" minLength:"1" maxLength:"128" doc:"Agent role (e.g., lead, developer)"`
 	Backstory string     `json:"backstory,omitempty" maxLength:"8192" doc:"Agent backstory"`
 	Goal      string     `json:"goal,omitempty" maxLength:"4096" doc:"Agent goal"`
+	Model     string     `json:"model,omitempty" maxLength:"255" doc:"LLM model"`
 	BoardID   uuid.UUID  `json:"board_id" format:"uuid" doc:"Board to assign the agent to"`
 	GatewayID *uuid.UUID `json:"gateway_id,omitempty" format:"uuid" doc:"Optional gateway"`
 }
@@ -22,6 +23,7 @@ type UpdateAgentInput struct {
 	Role      *string `json:"role,omitempty" minLength:"1" maxLength:"128" doc:"Agent role"`
 	Backstory *string `json:"backstory,omitempty" maxLength:"8192" doc:"Agent backstory"`
 	Goal      *string `json:"goal,omitempty" maxLength:"4096" doc:"Agent goal"`
+	Model     *string `json:"model,omitempty" maxLength:"255" doc:"LLM model"`
 	Status    *string `json:"status,omitempty" enum:"online,offline,degraded,provisioning" doc:"Agent status"`
 }
 
@@ -33,6 +35,7 @@ type AgentOutput struct {
 	Status          string     `json:"status"`
 	Backstory       string     `json:"backstory,omitempty"`
 	Goal            string     `json:"goal,omitempty"`
+	Model           string     `json:"model,omitempty" doc:"LLM model"`
 	BoardID         uuid.UUID  `json:"board_id"`
 	GatewayID       *uuid.UUID `json:"gateway_id,omitempty"`
 	CurrentTask     *string    `json:"current_task,omitempty"`

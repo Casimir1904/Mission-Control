@@ -67,6 +67,9 @@ func (s *agentService) Create(ctx context.Context, input dto.CreateAgentInput) (
 	if input.Goal != "" {
 		builder.SetGoal(input.Goal)
 	}
+	if input.Model != "" {
+		builder.SetModel(input.Model)
+	}
 	if input.GatewayID != nil {
 		builder.SetGatewayID(*input.GatewayID)
 	}
@@ -151,6 +154,9 @@ func (s *agentService) Update(ctx context.Context, id uuid.UUID, input dto.Updat
 	if input.Goal != nil {
 		builder.SetGoal(*input.Goal)
 	}
+	if input.Model != nil {
+		builder.SetModel(*input.Model)
+	}
 	if input.Status != nil {
 		builder.SetStatus(agent.Status(*input.Status))
 	}
@@ -211,6 +217,7 @@ func (s *agentService) agentToOutput(_ context.Context, a *generated.Agent) *dto
 		Status:          string(a.Status),
 		Backstory:       a.Backstory,
 		Goal:            a.Goal,
+		Model:           a.Model,
 		BoardID:         a.BoardID,
 		GatewayID:       a.GatewayID,
 		LastHeartbeatAt: a.LastHeartbeatAt,

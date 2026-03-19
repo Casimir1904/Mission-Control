@@ -1,48 +1,40 @@
 package dto
 
-import "time"
+import "github.com/google/uuid"
 
-// TeamTemplateOutput is the API response for a ClawTeam team template.
+// AgentRoleOutput describes an agent role within a team template.
+type AgentRoleOutput struct {
+	Name         string `json:"name" doc:"Role name (e.g., lead-reviewer)"`
+	Role         string `json:"role" doc:"Role type (e.g., leader, reviewer)"`
+	Backstory    string `json:"backstory,omitempty" doc:"System prompt / backstory"`
+	DefaultModel string `json:"default_model" doc:"Suggested model for this role"`
+	IsLeader     bool   `json:"is_leader" doc:"Whether this is the team leader"`
+}
+
+// TeamTemplateOutput is the API response for a team template.
 type TeamTemplateOutput struct {
-	Name        string   `json:"name" doc:"Template name"`
-	Description string   `json:"description" doc:"Template description"`
-	Roles       []string `json:"roles" doc:"Agent roles in the team"`
-	AgentCount  int      `json:"agent_count" doc:"Number of agents in the team"`
+	Name        string            `json:"name" doc:"Template name"`
+	Description string            `json:"description" doc:"Template description"`
+	Agents      []AgentRoleOutput `json:"agents" doc:"Agent roles in the team"`
 }
 
-// CreateTeamRunInput is the payload for starting a team run.
-type CreateTeamRunInput struct {
-	TeamName string `json:"team_name" minLength:"1" doc:"Team template name to use"`
-	Task     string `json:"task" minLength:"1" doc:"Task description for the team"`
-	BoardID  string `json:"board_id,omitempty" format:"uuid" doc:"Optional board to associate the run with"`
+// AgentModelOverride allows overriding the default model for a specific role.
+type AgentModelOverride struct {
+	RoleName string `json:"role_name" doc:"Role name to override"`
+	Model    string `json:"model" doc:"Model to use instead of default"`
 }
 
-// TeamRunOutput is the API response for a team run.
-type TeamRunOutput struct {
-	ID        string          `json:"id" doc:"ClawTeam run ID"`
-	TeamName  string          `json:"team_name" doc:"Team template used"`
-	Task      string          `json:"task" doc:"Task description"`
-	Status    string          `json:"status" doc:"Run status: pending, running, completed, failed"`
-	SubTasks  []SubTaskOutput `json:"sub_tasks,omitempty" doc:"Sub-tasks within the run"`
-	Result    string          `json:"result,omitempty" doc:"Final result of the run"`
-	BoardID   string          `json:"board_id,omitempty" doc:"Associated board ID"`
-	StartedAt *time.Time      `json:"started_at,omitempty" doc:"When the run started"`
-	EndedAt   *time.Time      `json:"ended_at,omitempty" doc:"When the run ended"`
+// CreateTeamInput is the payload for creating a team from a template.
+type CreateTeamInput struct {
+	TemplateName   string               `json:"template_name" minLength:"1" doc:"Template to use"`
+	BoardName      string               `json:"board_name" minLength:"1" maxLength:"255" doc:"Name for the new board"`
+	OrganizationID uuid.UUID            `json:"organization_id" format:"uuid" doc:"Organization to create the board in"`
+	GatewayID      *uuid.UUID           `json:"gateway_id,omitempty" format:"uuid" doc:"Gateway for agent provisioning"`
+	ModelOverrides []AgentModelOverride  `json:"model_overrides,omitempty" doc:"Per-role model overrides"`
 }
 
-// SubTaskOutput is a sub-task within a team run.
-type SubTaskOutput struct {
-	ID        string   `json:"id" doc:"Sub-task ID"`
-	Title     string   `json:"title" doc:"Sub-task title"`
-	Agent     string   `json:"agent" doc:"Agent handling this sub-task"`
-	Status    string   `json:"status" doc:"Sub-task status"`
-	DependsOn []string `json:"depends_on,omitempty" doc:"IDs of sub-tasks this depends on"`
-	Result    string   `json:"result,omitempty" doc:"Sub-task result"`
-}
-
-// ListTeamRunsOptions extends ListOptions with team run filters.
-type ListTeamRunsOptions struct {
-	ListOptions
-	Status   string `json:"status,omitempty"`
-	TeamName string `json:"team_name,omitempty"`
+// CreateTeamOutput is the response after creating a team.
+type CreateTeamOutput struct {
+	BoardID  uuid.UUID     `json:"board_id" doc:"Created board ID"`
+	Agents   []AgentOutput `json:"agents" doc:"Created agents"`
 }

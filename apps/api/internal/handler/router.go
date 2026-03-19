@@ -49,7 +49,7 @@ type Dependencies struct {
 	OrchestratorService service.OrchestratorService
 
 	// Phase 6 services.
-	ClawTeamService service.ClawTeamService
+	TeamTemplateService service.TeamTemplateService
 }
 
 // NewRouter creates and configures the chi router with Huma API and all middleware.
@@ -104,9 +104,9 @@ func NewRouter(deps *Dependencies) http.Handler {
 	// Register Phase 5b deliverable routes.
 	registerDeliverableRoutes(api, deps.DeliverableService)
 
-	// Register Phase 6 ClawTeam integration routes (if service is available).
-	if deps.ClawTeamService != nil {
-		registerTeamRoutes(api, deps.ClawTeamService)
+	// Register Phase 6 team template routes.
+	if deps.TeamTemplateService != nil {
+		registerTeamRoutes(api, deps.TeamTemplateService)
 	}
 
 	// Placeholder route groups for future entities.

@@ -38,15 +38,6 @@ type Config struct {
 	// with OpenClaw gateways in device mode (required for non-localhost
 	// connections). The directory must be persistent across restarts.
 	DeviceIdentityDir string
-
-	// ClawTeamURL is the ClawTeam board dashboard URL (e.g., http://192.168.1.162:8080).
-	ClawTeamURL string
-
-	// ClawTeamSSH is the SSH host for ClawTeam CLI commands (e.g., openclaw@192.168.1.162).
-	ClawTeamSSH string
-
-	// ClawTeamEnabled controls whether ClawTeam integration is active.
-	ClawTeamEnabled bool
 }
 
 // Load reads configuration from environment variables and returns a Config.
@@ -75,10 +66,6 @@ func Load() (*Config, error) {
 	}
 
 	cfg.DeviceIdentityDir = envOrDefault("DEVICE_IDENTITY_DIR", "/data/device-identity")
-
-	cfg.ClawTeamURL = os.Getenv("CLAWTEAM_URL")
-	cfg.ClawTeamSSH = os.Getenv("CLAWTEAM_SSH")
-	cfg.ClawTeamEnabled = os.Getenv("CLAWTEAM_ENABLED") == "true"
 
 	if cfg.DatabaseURL == "" {
 		return nil, fmt.Errorf("validate config: DATABASE_URL is required")

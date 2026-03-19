@@ -27,10 +27,9 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
 # Use alpine instead of distroless so we can mkdir for device identity.
 FROM alpine:3.21
 
-RUN apk add --no-cache openssh-client && \
-    adduser -D -u 65532 nonroot && \
-    mkdir -p /data/device-identity /home/nonroot/.ssh && \
-    chown -R nonroot:nonroot /data /home/nonroot/.ssh
+RUN adduser -D -u 65532 nonroot && \
+    mkdir -p /data/device-identity && \
+    chown -R nonroot:nonroot /data
 
 COPY --from=builder /build/api-server /api-server
 

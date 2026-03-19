@@ -56,9 +56,6 @@ services:
       - OIDC_AUDIENCE=${OIDC_AUDIENCE:-}
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3000}
       - DEVICE_IDENTITY_DIR=/data/device-identity
-      - CLAWTEAM_URL=${CLAWTEAM_URL:-}
-      - CLAWTEAM_SSH=${CLAWTEAM_SSH:-}
-      - CLAWTEAM_ENABLED=${CLAWTEAM_ENABLED:-false}
     volumes:
       - device_identity:/data/device-identity
     ports:
