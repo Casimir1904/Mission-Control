@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Users, Crown } from "lucide-react";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
@@ -19,6 +19,14 @@ import {
 import type { AgentModelOverride } from "@/lib/api/types";
 
 export default function NewTeamPage() {
+  return (
+    <Suspense>
+      <NewTeamPageInner />
+    </Suspense>
+  );
+}
+
+function NewTeamPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const preselected = searchParams.get("template") ?? "";
