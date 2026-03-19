@@ -165,6 +165,20 @@ func (m *Manager) DisconnectGateway(gatewayID uuid.UUID) error {
 	return nil
 }
 
+// ConnectedGatewayIDs returns the IDs of all currently connected gateways.
+func (m *Manager) ConnectedGatewayIDs() []uuid.UUID {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	ids := make([]uuid.UUID, 0, len(m.clients))
+	for id, c := range m.clients {
+		if c.connected.Load() {
+			ids = append(ids, id)
+		}
+	}
+	return ids
+}
+
 // GetClient returns the WebSocket client for a given gateway.
 func (m *Manager) GetClient(gatewayID uuid.UUID) (*Client, error) {
 	m.mu.RLock()
