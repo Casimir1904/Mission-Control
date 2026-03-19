@@ -484,5 +484,6 @@ export function ChatPanel({
     </>
   );
 
+  if (typeof document === "undefined") return null;
   return createPortal(panelContent, document.body);
 }

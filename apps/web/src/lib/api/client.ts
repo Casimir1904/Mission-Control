@@ -381,8 +381,12 @@ export const chatApi = {
       body: JSON.stringify(data ?? {}),
     }),
 
-  listSessions: (boardId: string) =>
-    apiFetch<ChatSession[]>(`/api/v1/boards/${boardId}/chat/sessions`),
+  listSessions: async (boardId: string): Promise<ChatSession[]> => {
+    const res = await apiFetch<{ items: ChatSession[]; total: number }>(
+      `/api/v1/boards/${boardId}/chat/sessions`
+    );
+    return res.items ?? [];
+  },
 
   sendMessage: (sessionKey: string, data: SendMessageInput) =>
     apiFetch<ChatMessage>(

@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Bot, ListTodo, Brain, Settings, Plus, MoreHorizontal, Trash2, Archive, MessageCircle, Crown } from "lucide-react";
@@ -13,8 +14,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StatusDot } from "@/components/status/status-dot";
 import { EmptyState } from "@/components/status/empty-state";
 import { KanbanBoard } from "@/components/boards/kanban-board";
-import { ChatPanel } from "@/components/chat/chat-panel";
-import { LeadAgentSelector, LeadAgentBadge } from "@/components/boards/lead-agent-selector";
+const ChatPanel = dynamic(() => import("@/components/chat/chat-panel").then(m => m.ChatPanel), { ssr: false });
+const LeadAgentSelector = dynamic(() => import("@/components/boards/lead-agent-selector").then(m => m.LeadAgentSelector), { ssr: false });
+const LeadAgentBadge = dynamic(() => import("@/components/boards/lead-agent-selector").then(m => m.LeadAgentBadge), { ssr: false });
 import {
   DropdownMenu,
   DropdownMenuTrigger,
