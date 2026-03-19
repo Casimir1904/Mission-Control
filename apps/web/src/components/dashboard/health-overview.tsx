@@ -20,7 +20,7 @@ export function HealthOverview({ data, isLoading }: HealthOverviewProps) {
       return { status: "healthy" as const, message: "Loading system status..." };
     }
 
-    const byStatus = data.agents_by_status;
+    const byStatus = data.agents_by_status ?? {};
     const offline = byStatus["offline"] ?? 0;
     const degraded = byStatus["degraded"] ?? 0;
     const total = Object.values(byStatus).reduce((sum, n) => sum + n, 0);

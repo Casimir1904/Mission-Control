@@ -98,8 +98,8 @@ export function TopologyGraph({ data }: TopologyGraphProps) {
           label: node.label,
           size: node.size,
           color: node.color,
-          x: Math.random() * 100,
-          y: Math.random() * 100,
+          x: Math.random() * 1000,
+          y: Math.random() * 1000,
           nodeType: node.type,
           originalColor: node.color,
           originalSize: node.size,
@@ -205,9 +205,11 @@ export function TopologyGraph({ data }: TopologyGraphProps) {
           return res;
         },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        edgeReducer: (_edge: string, attrs: any, source: string, target: string) => {
+        edgeReducer: (edge: string, attrs: any) => {
           const res = { ...attrs };
-          if (hoveredNodeRef.current) {
+          if (hoveredNodeRef.current && graphRef.current) {
+            const source = graphRef.current.source(edge);
+            const target = graphRef.current.target(edge);
             if (
               source === hoveredNodeRef.current ||
               target === hoveredNodeRef.current
@@ -224,6 +226,10 @@ export function TopologyGraph({ data }: TopologyGraphProps) {
 
       sigmaRef.current = sigma;
       initializedRef.current = true;
+
+      // Center the camera on the graph after layout
+      sigma.refresh();
+      sigma.getCamera().animatedReset({ duration: 300 });
 
       // ── Event handlers ──
 
@@ -301,6 +307,7 @@ export function TopologyGraph({ data }: TopologyGraphProps) {
 
     runLayout(graphRef.current, 100).then(() => {
       sigmaRef.current?.refresh();
+      sigmaRef.current?.getCamera().animatedReset({ duration: 300 });
     });
 
     // Close tooltip on filter change
@@ -338,10 +345,10 @@ export function TopologyGraph({ data }: TopologyGraphProps) {
 
   return (
     <div className="relative flex-1 overflow-hidden rounded-md border border-border-subtle">
-      {/* Sigma WebGL canvas */}
+      {/* Sigma WebGL canvas — needs absolute positioning to fill the flex container */}
       <div
         ref={containerRef}
-        className="h-full w-full"
+        className="absolute inset-0"
         style={
           {
             cursor: "grab",

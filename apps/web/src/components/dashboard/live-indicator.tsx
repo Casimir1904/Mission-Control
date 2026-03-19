@@ -9,7 +9,9 @@ interface LiveIndicatorProps {
 
 /**
  * Small pulsing dot indicator for WebSocket connection status.
- * Green + "Live" when connected, amber + "Reconnecting..." when disconnected.
+ * Green dot + "Live" when connected, small amber dot (no text) when reconnecting.
+ * The dashboard works fine without WebSocket (polling via TanStack Query),
+ * so the disconnected state is informational, not an error.
  */
 export function LiveIndicator({ isConnected, className }: LiveIndicatorProps) {
   return (
@@ -23,8 +25,8 @@ export function LiveIndicator({ isConnected, className }: LiveIndicatorProps) {
     >
       <span
         className={cn(
-          "relative inline-block h-2 w-2 rounded-full",
-          isConnected ? "bg-status-healthy" : "bg-status-warning"
+          "relative inline-block rounded-full",
+          isConnected ? "h-2 w-2 bg-status-healthy" : "h-1.5 w-1.5 bg-status-warning"
         )}
       >
         {isConnected && (
@@ -34,13 +36,13 @@ export function LiveIndicator({ isConnected, className }: LiveIndicatorProps) {
           />
         )}
       </span>
-      <span
-        className={cn(
-          isConnected ? "text-status-healthy" : "text-status-warning"
-        )}
-      >
-        {isConnected ? "Live" : "Reconnecting..."}
-      </span>
+      {isConnected && (
+        <span className="text-status-healthy">Live</span>
+      )}
+      {/* Screen reader only text when disconnected */}
+      {!isConnected && (
+        <span className="sr-only">Real-time updates unavailable, using polling</span>
+      )}
     </div>
   );
 }

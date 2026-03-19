@@ -740,14 +740,27 @@ export function useNotifications(params?: NotificationListParams) {
   return useQuery({
     queryKey: queryKeys.notifications.list(params),
     queryFn: () => notificationsApi.list(params),
+    // Notifications are non-critical: suppress errors gracefully.
+    // A 404 (endpoint not yet deployed) or network error should not
+    // surface as an error banner — treat as empty list.
+    retry: 1,
+    meta: { suppressErrors: true },
   });
 }
 
 export function useNotificationUnreadCount() {
   return useQuery({
     queryKey: queryKeys.notifications.unreadCount,
-    queryFn: () => notificationsApi.unreadCount(),
+    queryFn: async () => {
+      try {
+        return await notificationsApi.unreadCount();
+      } catch {
+        // If endpoint is unavailable, return zero rather than error
+        return { count: 0 };
+      }
+    },
     refetchInterval: 30_000, // Poll every 30s as baseline
+    retry: 1,
   });
 }
 
