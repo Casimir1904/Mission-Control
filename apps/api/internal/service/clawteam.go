@@ -213,6 +213,19 @@ func (s *teamTemplateService) CreateTeam(ctx context.Context, input dto.CreateTe
 			model = override
 		}
 
+		// Provision the agent on the OpenClaw gateway if one is selected.
+		if input.GatewayID != nil && s.gwManager != nil {
+			if err := s.gwManager.ProvisionAgent(ctx, *input.GatewayID, gateway.ProvisionAgentParams{
+				Name:  role.Name,
+				Model: model,
+			}); err != nil {
+				slog.Warn("team template: gateway provisioning failed, creating MC-only agent",
+					"role", role.Name,
+					"error", err,
+				)
+			}
+		}
+
 		agent, err := s.agentSvc.Create(ctx, dto.CreateAgentInput{
 			Name:      role.Name,
 			Role:      role.Role,

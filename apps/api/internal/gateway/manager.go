@@ -165,6 +165,38 @@ func (m *Manager) DisconnectGateway(gatewayID uuid.UUID) error {
 	return nil
 }
 
+// ProvisionAgentParams are the parameters for creating an agent on a gateway.
+type ProvisionAgentParams struct {
+	Name      string `json:"name"`
+	Model     string `json:"model,omitempty"`
+	Workspace string `json:"workspace,omitempty"`
+}
+
+// ProvisionAgent creates an agent on the OpenClaw gateway via RPC.
+func (m *Manager) ProvisionAgent(ctx context.Context, gatewayID uuid.UUID, params ProvisionAgentParams) error {
+	client, err := m.GetClient(gatewayID)
+	if err != nil {
+		return fmt.Errorf("provision agent: %w", err)
+	}
+
+	_, err = client.Call(ctx, "agents.add", params)
+	if err != nil {
+		m.logger.Warn("agents.add RPC failed (may not be supported)",
+			"gateway_id", gatewayID,
+			"agent_name", params.Name,
+			"error", err,
+		)
+		return fmt.Errorf("provision agent %q: %w", params.Name, err)
+	}
+
+	m.logger.Info("agent provisioned on gateway",
+		"gateway_id", gatewayID,
+		"agent_name", params.Name,
+		"model", params.Model,
+	)
+	return nil
+}
+
 // ConnectedGatewayIDs returns the IDs of all currently connected gateways.
 func (m *Manager) ConnectedGatewayIDs() []uuid.UUID {
 	m.mu.RLock()
