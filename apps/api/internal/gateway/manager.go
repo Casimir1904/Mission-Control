@@ -184,7 +184,7 @@ func ProvisionAgentViaSSH(ctx context.Context, sshHost string, params ProvisionA
 		"-o", "StrictHostKeyChecking=no",
 		"-o", "ConnectTimeout=10",
 		sshHost,
-		fmt.Sprintf("openclaw agents add %s --model %s --non-interactive --workspace /tmp/mc-agent-%s --json",
+		fmt.Sprintf("export PATH=/opt/homebrew/bin:$PATH && openclaw agents add %s --model %s --non-interactive --workspace /tmp/mc-agent-%s --json",
 			shellQuote(params.Name), shellQuote(params.Model), shellQuote(params.Name)),
 	}
 
