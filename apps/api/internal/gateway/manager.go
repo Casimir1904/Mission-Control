@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"os/exec"
+	"strings"
 	"sync"
 	"time"
 
@@ -167,34 +169,47 @@ func (m *Manager) DisconnectGateway(gatewayID uuid.UUID) error {
 
 // ProvisionAgentParams are the parameters for creating an agent on a gateway.
 type ProvisionAgentParams struct {
-	Name      string `json:"name"`
-	Model     string `json:"model,omitempty"`
-	Workspace string `json:"workspace,omitempty"`
+	Name  string
+	Model string
 }
 
-// ProvisionAgent creates an agent on the OpenClaw gateway via RPC.
-func (m *Manager) ProvisionAgent(ctx context.Context, gatewayID uuid.UUID, params ProvisionAgentParams) error {
-	client, err := m.GetClient(gatewayID)
-	if err != nil {
-		return fmt.Errorf("provision agent: %w", err)
+// ProvisionAgentViaSSH creates an agent on OpenClaw using SSH + CLI.
+// OpenClaw doesn't support agents.add via RPC, so we use the CLI directly.
+func ProvisionAgentViaSSH(ctx context.Context, sshHost string, params ProvisionAgentParams, logger *slog.Logger) error {
+	if sshHost == "" {
+		return fmt.Errorf("OPENCLAW_SSH not configured")
 	}
 
-	_, err = client.Call(ctx, "agents.add", params)
-	if err != nil {
-		m.logger.Warn("agents.add RPC failed (may not be supported)",
-			"gateway_id", gatewayID,
-			"agent_name", params.Name,
-			"error", err,
-		)
-		return fmt.Errorf("provision agent %q: %w", params.Name, err)
+	args := []string{
+		"-o", "StrictHostKeyChecking=no",
+		"-o", "ConnectTimeout=10",
+		sshHost,
+		fmt.Sprintf("openclaw agents add %s --model %s --non-interactive --workspace /tmp/mc-agent-%s --json",
+			shellQuote(params.Name), shellQuote(params.Model), shellQuote(params.Name)),
 	}
 
-	m.logger.Info("agent provisioned on gateway",
-		"gateway_id", gatewayID,
+	cmd := exec.CommandContext(ctx, "ssh", args...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		// Check if agent already exists.
+		if strings.Contains(string(out), "already exists") {
+			logger.Info("agent already exists on gateway, skipping", "agent_name", params.Name)
+			return nil
+		}
+		return fmt.Errorf("ssh openclaw agents add: %w: %s", err, string(out))
+	}
+
+	logger.Info("agent provisioned via SSH",
 		"agent_name", params.Name,
 		"model", params.Model,
+		"output", string(out),
 	)
 	return nil
+}
+
+// shellQuote wraps a string in single quotes for safe shell interpolation.
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'"
 }
 
 // ConnectedGatewayIDs returns the IDs of all currently connected gateways.

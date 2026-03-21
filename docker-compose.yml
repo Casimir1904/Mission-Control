@@ -56,6 +56,7 @@ services:
       - OIDC_AUDIENCE=${OIDC_AUDIENCE:-}
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3000}
       - DEVICE_IDENTITY_DIR=/data/device-identity
+      - OPENCLAW_SSH=${OPENCLAW_SSH:-}
     volumes:
       - device_identity:/data/device-identity
     ports:

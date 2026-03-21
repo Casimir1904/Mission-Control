@@ -38,6 +38,10 @@ type Config struct {
 	// with OpenClaw gateways in device mode (required for non-localhost
 	// connections). The directory must be persistent across restarts.
 	DeviceIdentityDir string
+
+	// OpenClawSSH is the SSH host for OpenClaw CLI commands (e.g., openclaw@192.168.1.162).
+	// Used for agent provisioning since OpenClaw doesn't expose agents.add via RPC.
+	OpenClawSSH string
 }
 
 // Load reads configuration from environment variables and returns a Config.
@@ -66,6 +70,7 @@ func Load() (*Config, error) {
 	}
 
 	cfg.DeviceIdentityDir = envOrDefault("DEVICE_IDENTITY_DIR", "/data/device-identity")
+	cfg.OpenClawSSH = os.Getenv("OPENCLAW_SSH")
 
 	if cfg.DatabaseURL == "" {
 		return nil, fmt.Errorf("validate config: DATABASE_URL is required")

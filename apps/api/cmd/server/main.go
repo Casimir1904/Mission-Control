@@ -155,7 +155,7 @@ func run() error {
 	go chatListener.Run(ctx)
 
 	// Initialize Phase 6 team template service.
-	teamTemplateSvc := service.NewTeamTemplateService(boardSvc, agentSvc, gwManager)
+	teamTemplateSvc := service.NewTeamTemplateService(boardSvc, agentSvc, gwManager, cfg.OpenClawSSH)
 
 	// Build the HTTP router.
 	deps := &handler.Dependencies{

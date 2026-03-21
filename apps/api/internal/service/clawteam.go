@@ -23,17 +23,19 @@ type TeamTemplateService interface {
 }
 
 type teamTemplateService struct {
-	boardSvc  BoardService
-	agentSvc  AgentService
-	gwManager *gateway.Manager
+	boardSvc   BoardService
+	agentSvc   AgentService
+	gwManager  *gateway.Manager
+	openClawSSH string
 }
 
 // NewTeamTemplateService creates a new TeamTemplateService.
-func NewTeamTemplateService(boardSvc BoardService, agentSvc AgentService, gwManager *gateway.Manager) TeamTemplateService {
+func NewTeamTemplateService(boardSvc BoardService, agentSvc AgentService, gwManager *gateway.Manager, openClawSSH string) TeamTemplateService {
 	return &teamTemplateService{
-		boardSvc:  boardSvc,
-		agentSvc:  agentSvc,
-		gwManager: gwManager,
+		boardSvc:    boardSvc,
+		agentSvc:    agentSvc,
+		gwManager:   gwManager,
+		openClawSSH: openClawSSH,
 	}
 }
 
@@ -213,29 +215,17 @@ func (s *teamTemplateService) CreateTeam(ctx context.Context, input dto.CreateTe
 			model = override
 		}
 
-		// Provision the agent on the OpenClaw gateway if one is selected.
-		if input.GatewayID != nil && s.gwManager != nil {
-			slog.Info("team template: provisioning agent on gateway",
-				"role", role.Name,
-				"model", model,
-				"gateway_id", *input.GatewayID,
-			)
-			if err := s.gwManager.ProvisionAgent(ctx, *input.GatewayID, gateway.ProvisionAgentParams{
+		// Provision the agent on OpenClaw via SSH if configured.
+		if input.GatewayID != nil && s.openClawSSH != "" {
+			if err := gateway.ProvisionAgentViaSSH(ctx, s.openClawSSH, gateway.ProvisionAgentParams{
 				Name:  role.Name,
 				Model: model,
-			}); err != nil {
-				slog.Warn("team template: gateway provisioning failed, creating MC-only agent",
+			}, slog.Default()); err != nil {
+				slog.Warn("team template: SSH provisioning failed, creating MC-only agent",
 					"role", role.Name,
-					"gateway_id", *input.GatewayID,
 					"error", err,
 				)
 			}
-		} else {
-			slog.Debug("team template: no gateway selected, MC-only agent",
-				"role", role.Name,
-				"gateway_nil", input.GatewayID == nil,
-				"manager_nil", s.gwManager == nil,
-			)
 		}
 
 		agent, err := s.agentSvc.Create(ctx, dto.CreateAgentInput{
